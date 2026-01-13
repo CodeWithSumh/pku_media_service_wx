@@ -13,7 +13,7 @@ RUN npm install
 COPY . .
 
 # 构建应用
-RUN npm run build
+RUN npm run build:dev
 
 # 安装生产依赖到dist目录
 RUN cd dist && npm install .
