@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block jsjson %}
+{
+  "type": "page",
+  "body": [
+    {
+      "type": "form",
+      "id": "u:781c3f87791d",
+      "title": "全景资源上传",
+      "api": "/commit",
+      "body": [
+        {
+          "type": "input-file",
+          "name": "file",
+          "label": "",
+          "accept": "*",
+          "multiple": false,
+          "receiver": "/upload",
+          "startChunkApi": "/startchunk",
+          "chunkApi": "/chunk",
+          "finishChunkApi": "/finishchunk",
+          "onEvent": {
+            "remove": {
+              "actions": [
+                {
+                  "actionType": "ajax",
+                  "args": {
+                    "api": {
+                      "url": "/delete?file=${item.name}",
+                      "method": "post"
+                    }
+                  }
+                }
+              ]
+            },
+            "success": {
+              "weight": 0,
+              "actions": [
+                {
+                  "componentId": "u:f705bfa1fec0",
+                  "ignoreError": false,
+                  "actionType": "show"
+                }
+              ]
+            }
+          },
+          "btnLabel": "文件上传",
+          "uploadType": "fileReceptor",
+          "proxy": false,
+          "autoUpload": true,
+          "useChunk": true,
+          "drag": true,
+          "asBlob": false,
+          "formType": "asBlob",
+          "asBase64": false,
+          "id": "u:cf858f561150"
+        }
+      ],
+      "debug": false,
+      "actions": [
+        {
+          "type": "submit",
+          "label": "开始处理",
+          "primary": true,
+          "id": "u:f705bfa1fec0",
+          "disabledOnAction": false,
+          "visible": false
+        }
+      ],
+      "feat": "Insert",
+      "dsType": "api",
+      "labelAlign": "left",
+      "onEvent": {
+        "submitSucc": {
+          "weight": 0,
+          "actions": [
+            {
+              "componentId": "u:f36720384a47",
+              "groupType": "component",
+              "actionType": "setValue",
+              "args": {
+                "value": "0"
+              }
+            },
+            {
+              "componentId": "u:f36720384a47",
+              "ignoreError": false,
+              "actionType": "show"
+            },
+            {
+              "ignoreError": false,
+              "script": "startQueryProgress(event.data.result.msg.tid)",
+              "actionType": "custom",
+              "args": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "progress",
+      "mode": "line",
+      "value": "${vprogress}",
+      "strokeWidth": 12,
+      "valueTpl": "${value}%",
+      "id": "u:f36720384a47",
+      "placeholder": "-",
+      "progressClassName": "w-md",
+      "map": [
+        {
+          "color": "#28a745",
+          "value": 100
+        },
+        {
+          "color": "#8df917",
+          "value": 99
+        }
+      ],
+      "animate": true,
+      "stripe": false,
+      "styleType": "purity",
+      "showLabel": true,
+      "visible": false
+    }
+  ],
+  "id": "u:248efbf34502",
+  "asideResizor": false,
+  "pullRefresh": {
+    "disabled": true
+  },
+  "data": {
+    "vprogress": 0,
+    "enabledrag": false
+  }
+}
+{% endblock%}

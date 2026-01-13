@@ -1,0 +1,30 @@
+{
+  "name": "commoncomponent",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && cd dist && npm install .",
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "@types/three": "^0.176.0",
+    "axios": "^1.9.0",
+    "babylonjs": "^8.9.0",
+    "gzip": "^0.1.0",
+    "path": "^0.12.7",
+    "three": "^0.176.0",
+    "vite-plugin-compression": "^0.5.1",
+    "vue": "^2.7.16",
+    "vue-router": "^3.6.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue2": "^2.3.1",
+    "gh-pages": "^6.3.0",
+    "sass-embedded": "^1.89.2",
+    "vite": "^5.2.8",
+    "vite-plugin-mkcert": "^1.17.8"
+  }
+}

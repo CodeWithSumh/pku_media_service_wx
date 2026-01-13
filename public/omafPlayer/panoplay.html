@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>全景视频漫游</title>
+
+    <!-- meta -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height">
+    <link rel="manifest" href="site.webmanifest">
+
+    <!-- icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="img/favicon_io/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon_io/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon_io/favicon-16x16.png">
+
+    <!-- styles  -->
+    <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="lib/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/main.css">
+
+    <!-- libraries -->
+    <script src="lib/jquery/jquery-3.2.1.slim.min.js"></script>
+    <script src="lib/bootstrap/js/popper.min.js"></script>
+    <script src="lib/bootstrap/js/bootstrap.min.js"></script> 
+    <script src="lib/angular/angular.min.js"></script>
+    <script src="lib/angular/angular-resource.min.js"></script>
+    <script src="lib/angular/angular-flot.js"></script>
+    <script src="lib/threejs/three.min.js"></script>
+    <script src="lib/threejs/OrbitControls.js"></script>
+    <script src="lib/threejs/WebGL.js"></script>
+    <script src="lib/threejs/stats.min.js"></script>
+    <script src="lib/mp4boxjs/mp4box.all.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <!-- OMAF Player Scripts -->
+    <script src="scripts/renderer.js"></script>
+    <script src="scripts/mediaengine.js"></script>
+    <script src="scripts/mpdparser.js"></script>
+    <script src="scripts/fetcher.js"></script>
+    <script src="scripts/queue.js"></script>
+    <script src="scripts/omafplayer.js"></script>
+    <script src="scripts/autoplay.js"></script>
+    <script src="scripts/scheduler.js"></script>
+    <style>
+        .progress-container {
+        width: 100%;
+        height: 5px;
+        background: #ddd;
+        position: relative;
+        }
+        .progress-bar {
+        height: 100%;
+        background: #f00;
+        width: 0%;
+        }
+        .progress-handle {
+        width: 12px;
+        height: 12px;
+        background: #fff;
+        border-radius: 50%;
+        position: absolute;
+        top: -4px;
+        left: 0;
+        }
+        .btn-hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body ng-app="OMAFPlayer" ng-controller="OMAFController" style=" overflow: hidden;">  
+    <div class="container" style="max-width: 100vw !important; padding: 0 !important; margin: 0;">
+        <!-- PLAYER & STATS -->
+        <div class="row" style="margin: 0 !important;">
+            <!-- player -->
+            <div class="col-xl-9 omaf-player" style="padding: 0 !important;">
+                <div id="videobox" style="height: calc(100vh - 60px + 7px + 7px) !important">
+                    <!-- <img id="fraunhofer_curtain" src="img/hhi_logo_en.svg"/> -->
+                    <canvas id="renderingSurface" style="aspect-ratio: auto !important; object-fit: fill;"></canvas>
+                    <video id="video1" ></video>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar"></div>
+                    <!-- <div class="progress-handle"></div> -->
+                </div>
+               
+                <div id="videoController" class="video-controller">
+                    <!-- https://www.w3schools.com/icons/fontawesome_icons_video.asp -->
+                    <div id="playPauseBtn" class="btn-play" style="margin-left: 5%;" data-toggle="tooltip" data-placement="bottom" title="Play" ng-click="doPlayPause()">
+                        <span id="iconPlayPause" class="fa fa-play"></span>
+                    </div>
+                    <span id="videoTime" class="time-display"></span>
+                    <div id="fullscreenBtn" class="btn-fullscreen btn-hidden" data-toggle="tooltip" data-placement="bottom" title="Fullscreen" ng-click="doFullscreen()">
+                        <span id="iconFullscreen" class="fa fa-arrows-alt"></span>
+                    </div>
+                    <div id="repeatBtn" class="btn-repeat btn-hidden" data-toggle="tooltip" data-placement="bottom" title="Repeat" >
+                            <span id="iconRepeat" class="fa fa-repeat" ng-click="doLoop($event)"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

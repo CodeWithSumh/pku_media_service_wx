@@ -1,0 +1,8 @@
+{
+  "base": "__AUTO_BASE__",
+  "models": {
+    "huabiao": "gaussianSplat/gs_data/huabiao.splat",
+    "boyata": "gaussianSplat/gs_data/boya.splat",
+    "lidazhao": "gaussianSplat/gs_data/lidazhao.splat"
+  }
+}

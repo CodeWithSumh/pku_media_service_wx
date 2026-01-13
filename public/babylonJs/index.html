@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Babylon Template</title>
+
+    <style>
+        html,
+        body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+    </style>
+
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+</head>
+
+<body>
+
+    <canvas id="renderCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('renderCanvas');
+        const engine = new BABYLON.Engine(canvas, true);
+        engine.enableOfflineSupport = false;
+        // 初始ply文件id前两位
+        const initPlyIdPrefix = '45';
+        // 初始x轴位置
+        var initPositionX = '7461.472478323341'
+
+        var createScene = function () {
+            // This creates a basic Babylon Scene object (non-mesh)
+            var scene = new BABYLON.Scene(engine);
+
+            // This creates and positions a free camera (non-mesh)
+            var camera = new BABYLON.ArcRotateCamera(
+                "ArcRotateCamera",
+                4.399892429517623, // alpha：水平旋转角度
+                2.5023789786474726, // beta：垂直旋转角度
+                158.23819720487273,         // radius：相机距离目标点的距离
+                new BABYLON.Vector3(7461.472478323341, -17710.74427816968, 717.8793131088032), // target：观察的目标点
+                scene
+            );
+
+
+            // This attaches the camera to the canvas
+            camera.attachControl(canvas, true);
+
+            // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+            var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+            // Default intensity is 1. Let's dim the light a small amount
+            light.intensity = 0.7;
+
+            // Gaussian Splatting
+            var gs = new BABYLON.GaussianSplattingMesh("", "https://172.22.23.81:8088/model/4534.ply", scene, true);
+
+            gs.scaling = new BABYLON.Vector3(100, 100, 100);
+
+            gs.rotation.z = -( Math.PI / 2);
+
+            scene.onReadyObservable.add(() => {
+                // const target = new BABYLON.Vector3(7461.472478323341, -17710.74427816968, 717.8793131088032);
+                // const position = new BABYLON.Vector3(7360.373686702147, -17736.055556908057, 902.9117375453728);
+                // const target = new BABYLON.Vector3(7392.651571489464, -17618.169749645174, 1003.412492041464);
+                // const radius = 158.23819720487273;
+                // camera.position = position.add(new BABYLON.Vector3(0, 0, 100));
+                // camera.setTarget(target);
+                // camera.radius = radius; // 或你想要的距离
+
+
+                modifyMesh(gs, camera);
+                // gs.scaling.x = 100.;
+                // gs.scaling.y = 100.;
+                // gs.scaling.z = 100.;
+            });
+
+            return scene;
+        };
+        
+
+        function modifyMesh(gs, camera) {
+            const initPlys = []
+            // const newArr = [4342, 4343, 4344, 4345, 4346, 4347, 4348, 4349, 4350, 4351, 4352, 4353, 4354, 4355, 4356, 4357, 4358, 4359, 4360, 4361, 4362]
+            const newArr = [4706, 4707, 4708, 4709, 4710, 4711, 4712, 4713, 4714, 4715, 4716, 4717, 4718, 4719, 4720, 4721, 4722, 4723, 4724, 4725, 4726, 4797, 4798, 4799]
+            const arr = [
+                4433, 4434, 4435, 4436, 4437, 4438, 4439, 4440, 4441, 4442, 4443, 4444, 4445, 4446, 4447, 4448, 4449, 4453, 
+                4524, 4525, 4526, 4527, 4528, 4529, 4530, 4531, 4532, 4533, 4534, 4535, 4536, 4537, 4538, 4539, 4540, 4541, 4542, 4543, 4544,
+                4615, 4616, 4617, 4618, 4619, 4620, 4621, 4622, 4623, 4624, 4625, 4626, 4627, 4628, 4629, 4630, 4631, 4632, 4633, 4634, 4635
+            ]
+            for(let i = 0; i < arr.length; i++) {
+                // initPlys.push(`https://172.22.23.117:8932/ply/get_file?id=${arr[i]}`)
+                const gsMesh = new BABYLON.GaussianSplattingMesh(`gsMesh${arr[i]}`, `https://172.22.23.117:8932/ply/get_file?id=${arr[i]}`, null, true);
+                // 统一缩放
+                gsMesh.scaling = new BABYLON.Vector3(100, 100, 100);
+                // 统一旋转
+                gsMesh.rotation = new BABYLON.Vector3(0, 0, -(Math.PI / 2));
+            }
+
+            
+
+            // 监听相机视角变化，打印当前 position 和 target
+            camera.onViewMatrixChangedObservable.add(() => {
+                if(parseInt(Number(camera.position.x) - Number(initPositionX)) === 50 ) {
+                    console.log(Math.abs(Number(camera.position.x) - Number(initPositionX)), scene)
+                    arr.filter(id => String(id).startsWith(initPlyIdPrefix - 1)).forEach(id => {
+                        const meshName = "gsMesh" + id;
+                        const mesh = scene.getMeshByName(meshName);
+                        if (mesh) {
+                            mesh.dispose();
+                        }
+                    });
+                    for(let j = 0; j < newArr.length; j++) {
+                        const gsMesh = new BABYLON.GaussianSplattingMesh(
+                            `gsMesh${newArr[j]}`,
+                            `https://172.22.23.117:8932/ply/get_file?id=${newArr[j]}`,
+                            scene,
+                            true
+                        );
+                        gsMesh.scaling = new BABYLON.Vector3(100, 100, 100);
+                        gsMesh.rotation = new BABYLON.Vector3(0, 0, -(Math.PI / 2));
+                    }
+                }
+            });
+            // for (let i = 0; i < initPlys.length; i++) {
+            //     // Create a Gaussian Splatting mesh
+            //     const gsMesh = new BABYLON.GaussianSplattingMesh("", initPlys[i], null, true);
+            //     console.log(gsMesh.position);
+            //     // gsMesh.scaling.x = 100.;
+            //     // gsMesh.scaling.y = 100.;
+            //     // gsMesh.scaling.z = 100.;
+            // }
+            // Get GS data
+            // const arrayBuffer = gs.splatsData;
+            // // Make a float32 access. A splat is 32bytes (8floats)
+            // var positions = new Float32Array(arrayBuffer);
+            // // Do a change to the first 30000 splats
+            // for (let i = 0; i < 30000; i++) {
+            //     // Translate splats a little. GS shown here is upside down
+            //     positions[i * 8 + 1] -= 2.0;
+            // }
+            // Make that change visible
+            // gs.updateData(arrayBuffer);
+            // Create a blob with array buffer and download it. It can be used directly with the sandbox
+            // const blob = new Blob([arrayBuffer], { type: 'application/octet-stream' });
+            // BABYLON.Tools.DownloadBlob(blob, "newGSplat.splat");
+        }
+        /******* 结束创建场景 ******/
+        const scene = createScene();
+        // loop
+        engine.runRenderLoop(function () {
+            scene.render();
+        });
+        // resize
+        window.addEventListener('resize', function () {
+            engine.resize();
+        });
+    </script>
+
+</body>
+
+</html>

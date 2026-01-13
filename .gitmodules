@@ -1,0 +1,3 @@
+[submodule "public/omafPlayer"]
+	path = public/omafPlayer
+	url = https://e.coding.net/g-ksic0966/i23d/omaf.js.git
