@@ -1,31 +1,21 @@
 FROM node:18-slim
 
-# 设置工作目录
 WORKDIR /app
 
-# 复制package文件
+# 只拷贝依赖声明
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install
+# 安装生产依赖
+RUN npm install --production
 
-# 复制源代码
+# 拷贝代码
 COPY . .
 
-# 构建应用
-RUN npm run build
+# 如果你是前端构建（可选）
+# RUN npm run build
 
-# 安装生产依赖到dist目录
-RUN cd dist && npm install .
+# 云托管不看 EXPOSE，但可以留
+EXPOSE 8080
 
-# 复制Express服务器文件
-COPY public/app.js ./dist/
-
-# 切换到dist目录
-WORKDIR /app/dist
-
-# 暴露端口
-EXPOSE 8082
-
-# 启动服务器
+# 启动服务
 CMD ["node", "app.js"]
