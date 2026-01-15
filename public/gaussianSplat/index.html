@@ -16,13 +16,11 @@
     }
   </script>
   <style>
-
     body {
       background-color: #000000;
       height: 100vh;
       margin: 0px;
     }
-
   </style>
 
 </head>
@@ -32,7 +30,7 @@
     import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
     import * as THREE from 'three';
 
-    
+
     window.addEventListener("message", async (event) => {
       const { data } = event;
 
@@ -41,41 +39,41 @@
         const response = await fetch('model-url.json');
         const urlData = await response.json();
 
-        if (urlData.base === '__AUTO_BASE__') {
-          urlData.base = window.location.origin + '/';
-          // console.log(46666, urlData.base);
+        // if (urlData.modelsBase === '__AUTO_BASE__') {
+        //   urlData.modelsBase = window.location.origin + '/';
+        // console.log(46666, urlData.base);
 
-          const pathId = parseInt(data.pageParams.id);
-          let path = ''
-          switch (pathId) {
-            case 1:
-              path = urlData.base + urlData.models.huabiao; break;
-            case 2:
-              path = urlData.base + urlData.models.boyata; break;
-            case 3:
-              path = urlData.base + urlData.models.lidazhao; break;
-            default:
-              path = urlData.base + urlData.models.huabiao; break;
-          }
+        const pathId = parseInt(data.pageParams.id);
+        let path = ''
+        switch (pathId) {
+          case 1:
+            path = urlData.modelsBase + urlData.models.huabiao; break;
+          case 2:
+            path = urlData.modelsBase + urlData.models.boyata; break;
+          case 3:
+            path = urlData.modelsBase + urlData.models.lidazhao; break;
+          default:
+            path = urlData.modelsBase + urlData.models.huabiao; break;
+        }
         console.log('path:', path);
-        
-          const urlParams = new URLSearchParams(window.location.search);
-          const mode = parseInt(urlParams.get('mode')) || 0;
-        
-          const viewer = new GaussianSplats3D.Viewer({
-              'cameraUp': [0, -1, 0],
-              'initialCameraPosition': [0.2545772143590187, -0.022421991409040026, -5.515991088728122],
-              'initialCameraLookAt': [0, 0, 0],
-              'sphericalHarmonicsDegree': 2,
-          });
-          viewer.addSplatScene(path, 
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = parseInt(urlParams.get('mode')) || 0;
+
+        const viewer = new GaussianSplats3D.Viewer({
+          'cameraUp': [0, -1, 0],
+          'initialCameraPosition': [0.2545772143590187, -0.022421991409040026, -5.515991088728122],
+          'initialCameraLookAt': [0, 0, 0],
+          'sphericalHarmonicsDegree': 2,
+        });
+        viewer.addSplatScene(path,
           {
             'progressiveLoad': true
           }
         ).then(() => {
           viewer.start();
         });
-        }
+        // }
 
       } catch (e) {
         console.error('Error loading model-url.json:', e);
