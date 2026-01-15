@@ -73,12 +73,10 @@
         ).then(() => {
           viewer.start();
         });
-      }
-
       } catch (e) {
-      console.error('Error loading model-url.json:', e);
-      return;
-    }
+        console.error('Error loading model-url.json:', e);
+        return;
+      }
     })
 
   </script>
