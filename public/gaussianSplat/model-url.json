@@ -1,8 +1,9 @@
 {
   "base": "__AUTO_BASE__",
+  "modelsBase": "https://7072-prod-6gnlypud73cf4391-1395711158.tcb.qcloud.la",
   "models": {
-    "huabiao": "gaussianSplat/gs_data/huabiao.splat",
-    "boyata": "gaussianSplat/gs_data/boya.splat",
-    "lidazhao": "gaussianSplat/gs_data/lidazhao.splat"
+    "huabiao": "/huabiao.splat",
+    "boyata": "/boya.splat",
+    "lidazhao": "/lidazhao.splat"
   }
 }
