@@ -31,14 +31,31 @@ export default {
   methods: {
     // web、小程序获取模型各种信息
     getModelUrl() {
-        setTimeout(() => {
-          this.iframeEle = this.$refs['3dIframe'];
+      // 等待iframe加载完成后发送消息
+      const iframe = this.$refs['3dIframe'];
+      if (iframe.attachEvent) {
+        iframe.attachEvent('onload', () => {
+          console.log('iframe loaded (IE)');
+          this.iframeEle = iframe;
           this.sendMessage();
-          // this.iframeEle.contentWindow.postMessage({ url: this.fileUrl, cameraUrl: this.cameraUrl, initCameraUrl: '', envImageUrl: this.envImageUrl }, "*");
-        }, 1000);
+        });
+      } else {
+        iframe.onload = () => {
+          console.log('iframe loaded');
+          this.iframeEle = iframe;
+          this.sendMessage();
+        };
+      }
     },
     sendMessage() {
+      console.log('Sending message with query:', this.$route.query);
+      console.log('iframe element:', this.iframeEle);
+      if (!this.iframeEle || !this.iframeEle.contentWindow) {
+        console.error('iframe or contentWindow not available');
+        return;
+      }
       this.iframeEle.contentWindow.postMessage({ pageParams: this.$route.query }, "*");
+      console.log('Message sent successfully');
     },
   }
 }

@@ -30,21 +30,37 @@
     import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
     import * as THREE from 'three';
 
+    console.log('3D Gaussian Splat page loaded');
 
     window.addEventListener("message", async (event) => {
+      console.log('Received message event:', event);
+      console.log('Message data:', event.data);
+      console.log('pageParams:', event.data?.pageParams);
+
       const { data } = event;
 
-      // 加载 gaussian.json
-      try {
-        const response = await fetch('model-url.json');
-        const urlData = await response.json();
+      // 检查消息数据是否有效
+      if (!data || !data.pageParams || !data.pageParams.id) {
+        console.error('Invalid message data: missing pageParams.id');
+        return;
+      }
 
-        // if (urlData.modelsBase === '__AUTO_BASE__') {
-        //   urlData.modelsBase = window.location.origin + '/';
-        // console.log(46666, urlData.base);
+      try {
+        console.log('Loading model-url.json...');
+        const response = await fetch('model-url.json');
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const urlData = await response.json();
+        console.log('URL data loaded:', urlData);
 
         const pathId = parseInt(data.pageParams.id);
-        let path = ''
+        console.log('Path ID:', pathId);
+
+        let path = '';
         switch (pathId) {
           case 1:
             path = urlData.modelsBase + urlData.models.huabiao; break;
@@ -55,27 +71,31 @@
           default:
             path = urlData.modelsBase + urlData.models.huabiao; break;
         }
-        console.log('path:', path);
+        console.log('Full path to model:', path);
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const mode = parseInt(urlParams.get('mode')) || 0;
-
+        console.log('Initializing viewer...');
         const viewer = new GaussianSplats3D.Viewer({
           'cameraUp': [0, -1, 0],
           'initialCameraPosition': [0.2545772143590187, -0.022421991409040026, -5.515991088728122],
           'initialCameraLookAt': [0, 0, 0],
           'sphericalHarmonicsDegree': 2,
         });
-        viewer.addSplatScene(path,
-          {
-            'progressiveLoad': true
-          }
-        ).then(() => {
+
+        console.log('Loading splat scene...');
+        viewer.addSplatScene(path, {
+          'progressiveLoad': true
+        }).then(() => {
+          console.log('Splat scene loaded, starting viewer...');
           viewer.start();
+          console.log('Viewer started successfully');
+        }).catch(error => {
+          console.error('Error loading splat scene:', error);
         });
+
       } catch (e) {
-        console.error('Error loading model-url.json:', e);
-        return;
+        console.error('Error in message handler:', e);
+        console.error('Error details:', e.message);
+        console.error('Stack:', e.stack);
       }
     })
 
