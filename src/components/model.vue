@@ -25,7 +25,7 @@ export default {
 
     };
   },
-  created() {
+  mounted() {
     this.getModelUrl();
   },
   methods: {
@@ -33,6 +33,14 @@ export default {
     getModelUrl() {
       // 等待iframe加载完成后发送消息
       const iframe = this.$refs['3dIframe'];
+      console.log('iframe element from ref:', iframe);
+
+      if (!iframe) {
+        console.error('iframe element not found, retrying...');
+        setTimeout(() => this.getModelUrl(), 100);
+        return;
+      }
+
       if (iframe.attachEvent) {
         iframe.attachEvent('onload', () => {
           console.log('iframe loaded (IE)');
