@@ -42,19 +42,19 @@ class AbortablePromise {
     then(onResolve) {
         return new AbortablePromise((resolve, reject) => {
             this.promise = this.promise
-            .then((...args) => {
-                const onResolveResult = onResolve(...args);
-                if (onResolveResult instanceof Promise || onResolveResult instanceof AbortablePromise) {
-                    onResolveResult.then((...args2) => {
-                        resolve(...args2);
-                    });
-                } else {
-                    resolve(onResolveResult);
-                }
-            })
-            .catch((error) => {
-                reject(error);
-            });
+                .then((...args) => {
+                    const onResolveResult = onResolve(...args);
+                    if (onResolveResult instanceof Promise || onResolveResult instanceof AbortablePromise) {
+                        onResolveResult.then((...args2) => {
+                            resolve(...args2);
+                        });
+                    } else {
+                        resolve(onResolveResult);
+                    }
+                })
+                .catch((error) => {
+                    reject(error);
+                });
         }, this.abortHandler);
     }
 
@@ -63,7 +63,7 @@ class AbortablePromise {
             this.promise = this.promise.then((...args) => {
                 resolve(...args);
             })
-            .catch(onFail);
+                .catch(onFail);
         }, this.abortHandler);
     }
 
@@ -81,12 +81,12 @@ class AbortedPromiseError extends Error {
 
 }
 
-const floatToHalf = function() {
+const floatToHalf = function () {
 
     const floatView = new Float32Array(1);
     const int32View = new Int32Array(floatView.buffer);
 
-    return function(val) {
+    return function (val) {
         floatView[0] = val;
         const x = int32View[0];
 
@@ -108,34 +108,34 @@ const floatToHalf = function() {
             return bits;
         }
 
-        bits |= (( e - 112) << 10) | (m >> 1);
+        bits |= ((e - 112) << 10) | (m >> 1);
         bits += m & 1;
         return bits;
     };
 
 }();
 
-const uintEncodedFloat = function() {
+const uintEncodedFloat = function () {
 
     const floatView = new Float32Array(1);
     const int32View = new Int32Array(floatView.buffer);
 
-    return function(f) {
+    return function (f) {
         floatView[0] = f;
         return int32View[0];
     };
 
 }();
 
-const rgbaToInteger = function(r, g, b, a) {
+const rgbaToInteger = function (r, g, b, a) {
     return r + (g << 8) + (b << 16) + (a << 24);
 };
 
-const rgbaArrayToInteger = function(arr, offset) {
+const rgbaArrayToInteger = function (arr, offset) {
     return arr[offset] + (arr[offset + 1] << 8) + (arr[offset + 2] << 16) + (arr[offset + 3] << 24);
 };
 
-const fetchWithProgress = function(path, onProgress, saveChunks = true, headers) {
+const fetchWithProgress = function (path, onProgress, saveChunks = true, headers) {
 
     const abortController = new AbortController();
     const signal = abortController.signal;
@@ -156,66 +156,74 @@ const fetchWithProgress = function(path, onProgress, saveChunks = true, headers)
     };
 
     return new AbortablePromise((resolve, reject) => {
-        const fetchOptions = { signal };
-        if (headers) fetchOptions.headers = headers;
-         fetch(path, fetchOptions)
-        .then(async (data) => {
-            // Handle error conditions where data is still returned
-            if (!data.ok) {
-                const errorText = await data.text();
-                reject(new Error(`Fetch failed: ${data.status} ${data.statusText} ${errorText}`));
-                return;
+        const fetchOptions = {
+            signal,
+            method: 'GET', // 根据需要设置请求方法
+            mode: 'cors',  // 显式设置为 CORS 模式
+            headers: {
+                ...headers,  // 保留传入的 headers
+                'Access-Control-Allow-Origin': '*' // 允许所有来源的跨域请求
             }
+        };
 
-            const reader = data.body.getReader();
-            let bytesDownloaded = 0;
-            let _fileSize = data.headers.get('Content-Length');
-            let fileSize = _fileSize ? parseInt(_fileSize) : undefined;
-
-            const chunks = [];
-
-            while (!aborted) {
-                try {
-                    const { value: chunk, done } = await reader.read();
-                    if (done) {
-                        localOnProgress(100, '100%', chunk, fileSize);
-                        if (saveChunks) {
-                            const buffer = new Blob(chunks).arrayBuffer();
-                            resolve(buffer);
-                        } else {
-                            resolve();
-                        }
-                        break;
-                    }
-                    bytesDownloaded += chunk.length;
-                    let percent;
-                    let percentLabel;
-                    if (fileSize !== undefined) {
-                        percent = bytesDownloaded / fileSize * 100;
-                        percentLabel = `${percent.toFixed(2)}%`;
-                    }
-                    if (saveChunks) {
-                        chunks.push(chunk);
-                    }
-                    localOnProgress(percent, percentLabel, chunk, fileSize);
-                } catch (error) {
-                    reject(error);
+        fetch(path, fetchOptions)
+            .then(async (data) => {
+                // Handle error conditions where data is still returned
+                if (!data.ok) {
+                    const errorText = await data.text();
+                    reject(new Error(`Fetch failed: ${data.status} ${data.statusText} ${errorText}`));
                     return;
                 }
-            }
-        })
-        .catch((error) => {
-            reject(new AbortedPromiseError(error));
-        });
+
+                const reader = data.body.getReader();
+                let bytesDownloaded = 0;
+                let _fileSize = data.headers.get('Content-Length');
+                let fileSize = _fileSize ? parseInt(_fileSize) : undefined;
+
+                const chunks = [];
+
+                while (!aborted) {
+                    try {
+                        const { value: chunk, done } = await reader.read();
+                        if (done) {
+                            localOnProgress(100, '100%', chunk, fileSize);
+                            if (saveChunks) {
+                                const buffer = new Blob(chunks).arrayBuffer();
+                                resolve(buffer);
+                            } else {
+                                resolve();
+                            }
+                            break;
+                        }
+                        bytesDownloaded += chunk.length;
+                        let percent;
+                        let percentLabel;
+                        if (fileSize !== undefined) {
+                            percent = bytesDownloaded / fileSize * 100;
+                            percentLabel = `${percent.toFixed(2)}%`;
+                        }
+                        if (saveChunks) {
+                            chunks.push(chunk);
+                        }
+                        localOnProgress(percent, percentLabel, chunk, fileSize);
+                    } catch (error) {
+                        reject(error);
+                        return;
+                    }
+                }
+            })
+            .catch((error) => {
+                reject(new AbortedPromiseError(error));
+            });
     }, abortHandler);
 
 };
 
-const clamp = function(val, min, max) {
+const clamp = function (val, min, max) {
     return Math.max(Math.min(val, max), min);
 };
 
-const getCurrentTime = function() {
+const getCurrentTime = function () {
     return performance.now() / 1000;
 };
 
@@ -276,7 +284,7 @@ const abortablePromiseWithExtractedComponents = (abortHandler) => {
     let resolver;
     let rejecter;
     if (!abortHandler) {
-        abortHandler = () => {};
+        abortHandler = () => { };
     }
     const promise = new AbortablePromise((resolve, reject) => {
         resolver = resolve;
@@ -471,11 +479,11 @@ const dataViewFloatForCompressionLevel = (dataView, floatIndex, compressionLevel
     }
 };
 
-const convertBetweenCompressionLevels = function() {
+const convertBetweenCompressionLevels = function () {
 
     const noop = (v) => v;
 
-    return function(val, fromLevel, toLevel, isSH = false) {
+    return function (val, fromLevel, toLevel, isSH = false) {
         if (fromLevel === toLevel) return val;
         let outputConversionFunc = noop;
 
@@ -668,7 +676,7 @@ class SplatBuffer {
         if (transform) outCenter.applyMatrix4(transform);
     }
 
-    getSplatScaleAndRotation = function() {
+    getSplatScaleAndRotation = function () {
 
         const scaleMatrix = new THREE.Matrix4();
         const rotationMatrix = new THREE.Matrix4();
@@ -677,19 +685,19 @@ class SplatBuffer {
         const scale = new THREE.Vector3();
         const rotation = new THREE.Quaternion();
 
-        return function(index, outScale, outRotation, transform, scaleOverride) {
+        return function (index, outScale, outRotation, transform, scaleOverride) {
             const sectionIndex = this.globalSplatIndexToSectionMap[index];
             const section = this.sections[sectionIndex];
             const localSplatIndex = index - section.splatCountOffset;
 
             const srcSplatScalesBase = section.bytesPerSplat * localSplatIndex +
-                                       SplatBuffer.CompressionLevels[this.compressionLevel].ScaleOffsetBytes;
+                SplatBuffer.CompressionLevels[this.compressionLevel].ScaleOffsetBytes;
 
             const dataView = new DataView(this.bufferData, section.dataBase + srcSplatScalesBase);
 
             scale.set(toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 0, this.compressionLevel), this.compressionLevel),
-                      toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 1, this.compressionLevel), this.compressionLevel),
-                      toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 2, this.compressionLevel), this.compressionLevel));
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 1, this.compressionLevel), this.compressionLevel),
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 2, this.compressionLevel), this.compressionLevel));
             if (scaleOverride) {
                 if (scaleOverride.x !== undefined) scale.x = scaleOverride.x;
                 if (scaleOverride.y !== undefined) scale.y = scaleOverride.y;
@@ -697,9 +705,9 @@ class SplatBuffer {
             }
 
             rotation.set(toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 4, this.compressionLevel), this.compressionLevel),
-                         toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 5, this.compressionLevel), this.compressionLevel),
-                         toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 6, this.compressionLevel), this.compressionLevel),
-                         toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 3, this.compressionLevel), this.compressionLevel));
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 5, this.compressionLevel), this.compressionLevel),
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 6, this.compressionLevel), this.compressionLevel),
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 3, this.compressionLevel), this.compressionLevel));
 
             if (transform) {
                 scaleMatrix.makeScale(scale.x, scale.y, scale.z);
@@ -720,11 +728,11 @@ class SplatBuffer {
         const localSplatIndex = globalSplatIndex - section.splatCountOffset;
 
         const srcSplatColorsBase = section.bytesPerSplat * localSplatIndex +
-                                   SplatBuffer.CompressionLevels[this.compressionLevel].ColorOffsetBytes;
+            SplatBuffer.CompressionLevels[this.compressionLevel].ColorOffsetBytes;
         const splatColorsArray = new Uint8Array(this.bufferData, section.dataBase + srcSplatColorsBase, 4);
 
         outColor.set(splatColorsArray[0], splatColorsArray[1],
-                     splatColorsArray[2], splatColorsArray[3]);
+            splatColorsArray[2], splatColorsArray[3]);
     }
 
     fillSplatCenterArray(outCenterArray, transform, srcFrom, srcTo, destFrom) {
@@ -769,7 +777,7 @@ class SplatBuffer {
         }
     }
 
-    fillSplatScaleRotationArray = function() {
+    fillSplatScaleRotationArray = function () {
 
         const scaleMatrix = new THREE.Matrix4();
         const rotationMatrix = new THREE.Matrix4();
@@ -786,8 +794,8 @@ class SplatBuffer {
             quaternion.w *= flip;
         };
 
-        return function(outScaleArray, outRotationArray, transform, srcFrom, srcTo, destFrom,
-                        desiredOutputCompressionLevel, scaleOverride) {
+        return function (outScaleArray, outRotationArray, transform, srcFrom, srcTo, destFrom,
+            desiredOutputCompressionLevel, scaleOverride) {
             const splatCount = this.splatCount;
 
             srcFrom = srcFrom || 0;
@@ -805,18 +813,18 @@ class SplatBuffer {
                 const localSplatIndex = i - section.splatCountOffset;
 
                 const srcSplatScalesBase = section.bytesPerSplat * localSplatIndex +
-                                        SplatBuffer.CompressionLevels[this.compressionLevel].ScaleOffsetBytes;
+                    SplatBuffer.CompressionLevels[this.compressionLevel].ScaleOffsetBytes;
 
                 const scaleDestBase = (i - srcFrom + destFrom) * SplatBuffer.ScaleComponentCount;
                 const rotationDestBase = (i - srcFrom + destFrom) * SplatBuffer.RotationComponentCount;
                 const dataView = new DataView(this.bufferData, section.dataBase + srcSplatScalesBase);
 
                 const srcScaleX = (scaleOverride && scaleOverride.x !== undefined) ? scaleOverride.x :
-                                   dataViewFloatForCompressionLevel(dataView, 0, this.compressionLevel);
+                    dataViewFloatForCompressionLevel(dataView, 0, this.compressionLevel);
                 const srcScaleY = (scaleOverride && scaleOverride.y !== undefined) ? scaleOverride.y :
-                                   dataViewFloatForCompressionLevel(dataView, 1, this.compressionLevel);
+                    dataViewFloatForCompressionLevel(dataView, 1, this.compressionLevel);
                 const srcScaleZ = (scaleOverride && scaleOverride.z !== undefined) ? scaleOverride.z :
-                                   dataViewFloatForCompressionLevel(dataView, 2, this.compressionLevel);
+                    dataViewFloatForCompressionLevel(dataView, 2, this.compressionLevel);
 
                 const srcRotationW = dataViewFloatForCompressionLevel(dataView, 3, this.compressionLevel);
                 const srcRotationX = dataViewFloatForCompressionLevel(dataView, 4, this.compressionLevel);
@@ -824,13 +832,13 @@ class SplatBuffer {
                 const srcRotationZ = dataViewFloatForCompressionLevel(dataView, 6, this.compressionLevel);
 
                 scale.set(toUncompressedFloat(srcScaleX, this.compressionLevel),
-                          toUncompressedFloat(srcScaleY, this.compressionLevel),
-                          toUncompressedFloat(srcScaleZ, this.compressionLevel));
+                    toUncompressedFloat(srcScaleY, this.compressionLevel),
+                    toUncompressedFloat(srcScaleZ, this.compressionLevel));
 
                 rotation.set(toUncompressedFloat(srcRotationX, this.compressionLevel),
-                             toUncompressedFloat(srcRotationY, this.compressionLevel),
-                             toUncompressedFloat(srcRotationZ, this.compressionLevel),
-                             toUncompressedFloat(srcRotationW, this.compressionLevel)).normalize();
+                    toUncompressedFloat(srcRotationY, this.compressionLevel),
+                    toUncompressedFloat(srcRotationZ, this.compressionLevel),
+                    toUncompressedFloat(srcRotationW, this.compressionLevel)).normalize();
 
                 if (transform) {
                     tempPosition.set(0, 0, 0);
@@ -860,7 +868,7 @@ class SplatBuffer {
         };
     }();
 
-    static computeCovariance = function() {
+    static computeCovariance = function () {
 
         const tempMatrix4 = new THREE.Matrix4();
         const scaleMatrix = new THREE.Matrix3();
@@ -870,7 +878,7 @@ class SplatBuffer {
         const transform3x3 = new THREE.Matrix3();
         const transform3x3Transpose = new THREE.Matrix3();
 
-        return function(scale, rotation, transform, outCovariance, outOffset = 0, desiredOutputCompressionLevel) {
+        return function (scale, rotation, transform, outCovariance, outOffset = 0, desiredOutputCompressionLevel) {
 
             tempMatrix4.makeScale(scale.x, scale.y, scale.z);
             scaleMatrix.setFromMatrix4(tempMatrix4);
@@ -925,18 +933,18 @@ class SplatBuffer {
 
             const covarianceDestBase = (i - srcFrom + destFrom) * SplatBuffer.CovarianceComponentCount;
             const srcSplatScalesBase = section.bytesPerSplat * localSplatIndex +
-                                       SplatBuffer.CompressionLevels[this.compressionLevel].ScaleOffsetBytes;
+                SplatBuffer.CompressionLevels[this.compressionLevel].ScaleOffsetBytes;
 
             const dataView = new DataView(this.bufferData, section.dataBase + srcSplatScalesBase);
 
             scale.set(toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 0, this.compressionLevel), this.compressionLevel),
-                      toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 1, this.compressionLevel), this.compressionLevel),
-                      toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 2, this.compressionLevel), this.compressionLevel));
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 1, this.compressionLevel), this.compressionLevel),
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 2, this.compressionLevel), this.compressionLevel));
 
             rotation.set(toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 4, this.compressionLevel), this.compressionLevel),
-                         toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 5, this.compressionLevel), this.compressionLevel),
-                         toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 6, this.compressionLevel), this.compressionLevel),
-                         toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 3, this.compressionLevel), this.compressionLevel));
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 5, this.compressionLevel), this.compressionLevel),
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 6, this.compressionLevel), this.compressionLevel),
+                toUncompressedFloat(dataViewFloatForCompressionLevel(dataView, 3, this.compressionLevel), this.compressionLevel));
 
             SplatBuffer.computeCovariance(scale, rotation, transform, covarianceArray, covarianceDestBase, desiredOutputCompressionLevel);
         }
@@ -957,7 +965,7 @@ class SplatBuffer {
 
             const colorDestBase = (i - srcFrom + destFrom) * SplatBuffer.ColorComponentCount;
             const srcSplatColorsBase = section.bytesPerSplat * localSplatIndex +
-                                       SplatBuffer.CompressionLevels[this.compressionLevel].ColorOffsetBytes;
+                SplatBuffer.CompressionLevels[this.compressionLevel].ColorOffsetBytes;
 
             const dataView = new Uint8Array(this.bufferData, section.dataBase + srcSplatColorsBase);
 
@@ -971,7 +979,7 @@ class SplatBuffer {
         }
     }
 
-    fillSphericalHarmonicsArray = function() {
+    fillSphericalHarmonicsArray = function () {
 
         const sphericalHarmonicVectors = [];
         for (let i = 0; i < 15; i++) {
@@ -1040,8 +1048,8 @@ class SplatBuffer {
             return dest;
         };
 
-        return function(outSphericalHarmonicsArray, outSphericalHarmonicsDegree, transform,
-                        srcFrom, srcTo, destFrom, desiredOutputCompressionLevel) {
+        return function (outSphericalHarmonicsArray, outSphericalHarmonicsDegree, transform,
+            srcFrom, srcTo, destFrom, desiredOutputCompressionLevel) {
             const splatCount = this.splatCount;
 
             srcFrom = srcFrom || 0;
@@ -1077,7 +1085,7 @@ class SplatBuffer {
                 const localSplatIndex = i - section.splatCountOffset;
 
                 const srcSplatSHBase = section.bytesPerSplat * localSplatIndex +
-                                       SplatBuffer.CompressionLevels[this.compressionLevel].SphericalHarmonicsOffsetBytes;
+                    SplatBuffer.CompressionLevels[this.compressionLevel].SphericalHarmonicsOffsetBytes;
 
                 const dataView = new DataView(this.bufferData, section.dataBase + srcSplatSHBase);
 
@@ -1134,8 +1142,8 @@ class SplatBuffer {
                             toUncompressedFloatArray3(shIn4, shIn4, this.compressionLevel, minShCoeff, maxShCoeff);
                             toUncompressedFloatArray3(shIn5, shIn5, this.compressionLevel, minShCoeff, maxShCoeff);
                             SplatBuffer.rotateSphericalHarmonics5(shIn1, shIn2, shIn3, shIn4, shIn5,
-                                                                  sh11, sh12, sh13, sh21, sh22, sh23, sh24, sh25,
-                                                                  shOut1, shOut2, shOut3, shOut4, shOut5);
+                                sh11, sh12, sh13, sh21, sh22, sh23, sh24, sh25,
+                                shOut1, shOut2, shOut3, shOut4, shOut5);
                         } else {
                             copy3(shIn1, shOut1);
                             copy3(shIn2, shOut2);
@@ -1193,7 +1201,7 @@ class SplatBuffer {
     };
 
     static rotateSphericalHarmonics5 = (in1, in2, in3, in4, in5, tsh11, tsh12, tsh13,
-                                        tsh21, tsh22, tsh23, tsh24, tsh25, out1, out2, out3, out4, out5) => {
+        tsh21, tsh22, tsh23, tsh24, tsh25, out1, out2, out3, out4, out5) => {
 
         const kSqrt0104 = Math.sqrt(1.0 / 4.0);
         const kSqrt0304 = Math.sqrt(3.0 / 4.0);
@@ -1216,12 +1224,12 @@ class SplatBuffer {
         SplatBuffer.dot5(in1, in2, in3, in4, in5, tsh22, out2);
 
         tsh23[0] = kSqrt0103 * (tsh12[2] * tsh12[0] + tsh12[0] * tsh12[2]) + -kSqrt0112 *
-                   ((tsh13[2] * tsh13[0] + tsh13[0] * tsh13[2]) + (tsh11[2] * tsh11[0] + tsh11[0] * tsh11[2]));
+            ((tsh13[2] * tsh13[0] + tsh13[0] * tsh13[2]) + (tsh11[2] * tsh11[0] + tsh11[0] * tsh11[2]));
         tsh23[1] = kSqrt0403 * tsh12[1] * tsh12[0] + -kSqrt0103 * (tsh13[1] * tsh13[0] + tsh11[1] * tsh11[0]);
         tsh23[2] = tsh12[1] * tsh12[1] + -kSqrt0104 * (tsh13[1] * tsh13[1] + tsh11[1] * tsh11[1]);
         tsh23[3] = kSqrt0403 * tsh12[1] * tsh12[2] + -kSqrt0103 * (tsh13[1] * tsh13[2] + tsh11[1] * tsh11[2]);
         tsh23[4] = kSqrt0103 * (tsh12[2] * tsh12[2] - tsh12[0] * tsh12[0]) + -kSqrt0112 *
-                   ((tsh13[2] * tsh13[2] - tsh13[0] * tsh13[0]) + (tsh11[2] * tsh11[2] - tsh11[0] * tsh11[0]));
+            ((tsh13[2] * tsh13[2] - tsh13[0] * tsh13[0]) + (tsh11[2] * tsh11[2] - tsh11[0] * tsh11[0]));
         SplatBuffer.dot5(in1, in2, in3, in4, in5, tsh23, out3);
 
         tsh24[0] = kSqrt0104 * ((tsh12[2] * tsh13[0] + tsh12[0] * tsh13[2]) + (tsh13[2] * tsh12[0] + tsh13[0] * tsh12[2]));
@@ -1319,7 +1327,7 @@ class SplatBuffer {
             const halfBucketBlockSize = bucketBlockSize / 2.0;
             const bucketStorageSizeBytes = sectionHeaderArrayUint16[sectionHeaderBaseUint16 + 10];
             const compressionScaleRange = sectionHeaderArrayUint32[sectionHeaderBaseUint32 + 6] ||
-                                          SplatBuffer.CompressionLevels[compressionLevel].ScaleRange;
+                SplatBuffer.CompressionLevels[compressionLevel].ScaleRange;
             const fullBucketCount = sectionHeaderArrayUint32[sectionHeaderBaseUint32 + 8];
             const partiallyFilledBucketCount = sectionHeaderArrayUint32[sectionHeaderBaseUint32 + 9];
             const bucketsMetaDataSizeBytes = partiallyFilledBucketCount * 4;
@@ -1419,9 +1427,9 @@ class SplatBuffer {
         const bytesPerColor = SplatBuffer.CompressionLevels[compressionLevel].BytesPerColor;
         const sphericalHarmonicsComponentsPerSplat = getSphericalHarmonicsComponentCountForDegree(sphericalHarmonicsDegree);
         const sphericalHarmonicsBytesPerSplat = SplatBuffer.CompressionLevels[compressionLevel].BytesPerSphericalHarmonicsComponent *
-                                                sphericalHarmonicsComponentsPerSplat;
+            sphericalHarmonicsComponentsPerSplat;
         const bytesPerSplat = bytesPerCenter + bytesPerScale + bytesPerRotation +
-                              bytesPerColor + sphericalHarmonicsBytesPerSplat;
+            bytesPerColor + sphericalHarmonicsBytesPerSplat;
         return {
             bytesPerCenter,
             bytesPerScale,
@@ -1437,10 +1445,10 @@ class SplatBuffer {
         for (let i = 0; i < this.maxSectionCount; i++) {
             const section = this.sections[i];
             section.bucketArray = new Float32Array(this.bufferData, section.bucketsBase,
-                                                   section.bucketCount * SplatBuffer.BucketStorageSizeFloats);
+                section.bucketCount * SplatBuffer.BucketStorageSizeFloats);
             if (section.partiallyFilledBucketCount > 0) {
                 section.partiallyFilledBucketLengths = new Uint32Array(this.bufferData, section.base,
-                                                                       section.partiallyFilledBucketCount);
+                    section.partiallyFilledBucketCount);
             }
         }
     }
@@ -1470,7 +1478,7 @@ class SplatBuffer {
         this.sections[sectionIndex].splatCount = newSplatCount;
     }
 
-    static writeSplatDataToSectionBuffer = function() {
+    static writeSplatDataToSectionBuffer = function () {
 
         const tempCenterBuffer = new ArrayBuffer(12);
         const tempScaleBuffer = new ArrayBuffer(12);
@@ -1495,10 +1503,10 @@ class SplatBuffer {
             return clamp(v, 0, doubleCompressionScaleRange);
         };
 
-        return function(targetSplat, sectionBuffer, bufferOffset, compressionLevel, sphericalHarmonicsDegree,
-                        bucketCenter, compressionScaleFactor, compressionScaleRange,
-                        minSphericalHarmonicsCoeff = -DefaultSphericalHarmonics8BitCompressionHalfRange,
-                        maxSphericalHarmonicsCoeff = DefaultSphericalHarmonics8BitCompressionHalfRange) {
+        return function (targetSplat, sectionBuffer, bufferOffset, compressionLevel, sphericalHarmonicsDegree,
+            bucketCenter, compressionScaleFactor, compressionScaleRange,
+            minSphericalHarmonicsCoeff = -DefaultSphericalHarmonics8BitCompressionHalfRange,
+            maxSphericalHarmonicsCoeff = DefaultSphericalHarmonics8BitCompressionHalfRange) {
 
             const sphericalHarmonicsComponentsPerSplat = getSphericalHarmonicsComponentCountForDegree(sphericalHarmonicsDegree);
             const bytesPerCenter = SplatBuffer.CompressionLevels[compressionLevel].BytesPerCenter;
@@ -1521,8 +1529,8 @@ class SplatBuffer {
 
             if (targetSplat[OFFSET_SCALE0] !== undefined) {
                 tempScale.set(targetSplat[OFFSET_SCALE0] || 0,
-                              targetSplat[OFFSET_SCALE1] || 0,
-                              targetSplat[OFFSET_SCALE2] || 0);
+                    targetSplat[OFFSET_SCALE1] || 0,
+                    targetSplat[OFFSET_SCALE2] || 0);
             } else {
                 tempScale.set(0, 0, 0);
             }
@@ -1539,10 +1547,10 @@ class SplatBuffer {
                 if (sphericalHarmonicsDegree > 0) {
                     const shOut = new Float32Array(sectionBuffer, sphericalHarmonicsBase, sphericalHarmonicsComponentsPerSplat);
                     if (sphericalHarmonicsDegree >= 1) {
-                            for (let s = 0; s < 9; s++) shOut[s] = targetSplat[OFFSET_FRC0 + s] || 0;
-                            if (sphericalHarmonicsDegree >= 2) {
-                                for (let s = 0; s < 15; s++) shOut[s + 9] = targetSplat[OFFSET_FRC9 + s] || 0;
-                            }
+                        for (let s = 0; s < 9; s++) shOut[s] = targetSplat[OFFSET_FRC0 + s] || 0;
+                        if (sphericalHarmonicsDegree >= 2) {
+                            for (let s = 0; s < 15; s++) shOut[s + 9] = targetSplat[OFFSET_FRC9 + s] || 0;
+                        }
                     }
                 }
             } else {
@@ -1567,7 +1575,7 @@ class SplatBuffer {
                         for (let s = 0; s < 9; s++) {
                             const srcVal = targetSplat[OFFSET_FRC0 + s] || 0;
                             shOut[s] = compressionLevel === 1 ? toHalfFloat(srcVal) :
-                                       toUint8(srcVal, minSphericalHarmonicsCoeff, maxSphericalHarmonicsCoeff);
+                                toUint8(srcVal, minSphericalHarmonicsCoeff, maxSphericalHarmonicsCoeff);
                         }
                         const degree1ByteCount = 9 * bytesPerSHComponent;
                         copyBetweenBuffers(shOut.buffer, 0, sectionBuffer, sphericalHarmonicsBase, degree1ByteCount);
@@ -1575,10 +1583,10 @@ class SplatBuffer {
                             for (let s = 0; s < 15; s++) {
                                 const srcVal = targetSplat[OFFSET_FRC9 + s] || 0;
                                 shOut[s + 9] = compressionLevel === 1 ? toHalfFloat(srcVal) :
-                                               toUint8(srcVal, minSphericalHarmonicsCoeff, maxSphericalHarmonicsCoeff);
+                                    toUint8(srcVal, minSphericalHarmonicsCoeff, maxSphericalHarmonicsCoeff);
                             }
                             copyBetweenBuffers(shOut.buffer, degree1ByteCount, sectionBuffer,
-                                               sphericalHarmonicsBase + degree1ByteCount, 15 * bytesPerSHComponent);
+                                sphericalHarmonicsBase + degree1ByteCount, 15 * bytesPerSHComponent);
                         }
                     }
                 }
@@ -1598,10 +1606,10 @@ class SplatBuffer {
     }();
 
     static generateFromUncompressedSplatArrays(splatArrays, minimumAlpha, compressionLevel,
-                                               sceneCenter, blockSize, bucketSize, options = []) {
+        sceneCenter, blockSize, bucketSize, options = []) {
 
         let shDegree = 0;
-        for (let sa = 0; sa < splatArrays.length; sa ++) {
+        for (let sa = 0; sa < splatArrays.length; sa++) {
             const splatArray = splatArrays[sa];
             shDegree = Math.max(splatArray.sphericalHarmonicsDegree, shDegree);
         }
@@ -1609,7 +1617,7 @@ class SplatBuffer {
         let minSphericalHarmonicsCoeff;
         let maxSphericalHarmonicsCoeff;
 
-        for (let sa = 0; sa < splatArrays.length; sa ++) {
+        for (let sa = 0; sa < splatArrays.length; sa++) {
             const splatArray = splatArrays[sa];
             for (let i = 0; i < splatArray.splats.length; i++) {
                 const splat = splatArray.splats[i];
@@ -1634,7 +1642,7 @@ class SplatBuffer {
         const sectionHeaderBuffers = [];
         let totalSplatCount = 0;
 
-        for (let sa = 0; sa < splatArrays.length; sa ++) {
+        for (let sa = 0; sa < splatArrays.length; sa++) {
             const splatArray = splatArrays[sa];
             const validSplats = new UncompressedSplatArray(shDegree);
             for (let i = 0; i < splatArray.splatCount; i++) {
@@ -1657,7 +1665,7 @@ class SplatBuffer {
             const sectionDataSizeBytes = validSplats.splats.length * bytesPerSplat;
             const bucketMetaDataSizeBytes = partiallyFilledBucketCount * 4;
             const bucketDataBytes = compressionLevel >= 1 ? buckets.length *
-                                                            SplatBuffer.BucketStorageSizeBytes + bucketMetaDataSizeBytes : 0;
+                SplatBuffer.BucketStorageSizeBytes + bucketMetaDataSizeBytes : 0;
             const sectionSizeBytes = sectionDataSizeBytes + bucketDataBytes;
             const sectionBuffer = new ArrayBuffer(sectionSizeBytes);
 
@@ -1673,8 +1681,8 @@ class SplatBuffer {
                     const targetSplat = validSplats.splats[row];
                     const bufferOffset = bucketDataBytes + outSplatCount * bytesPerSplat;
                     SplatBuffer.writeSplatDataToSectionBuffer(targetSplat, sectionBuffer, bufferOffset, compressionLevel, shDegree,
-                                                              bucketCenter, compressionScaleFactor, compressionScaleRange,
-                                                              minSphericalHarmonicsCoeff, maxSphericalHarmonicsCoeff);
+                        bucketCenter, compressionScaleFactor, compressionScaleRange,
+                        minSphericalHarmonicsCoeff, maxSphericalHarmonicsCoeff);
                     outSplatCount++;
                 }
             }
@@ -1682,11 +1690,11 @@ class SplatBuffer {
 
             if (compressionLevel >= 1) {
                 const bucketMetaDataArray = new Uint32Array(sectionBuffer, 0, partiallyFullBucketLengths.length * 4);
-                for (let pfb = 0; pfb < partiallyFullBucketLengths.length; pfb ++) {
+                for (let pfb = 0; pfb < partiallyFullBucketLengths.length; pfb++) {
                     bucketMetaDataArray[pfb] = partiallyFullBucketLengths[pfb];
                 }
                 const bucketArray = new Float32Array(sectionBuffer, bucketMetaDataSizeBytes,
-                                                     buckets.length * SplatBuffer.BucketStorageSizeFloats);
+                    buckets.length * SplatBuffer.BucketStorageSizeFloats);
                 for (let b = 0; b < buckets.length; b++) {
                     const bucket = buckets[b];
                     const base = b * 3;
@@ -1717,7 +1725,7 @@ class SplatBuffer {
         let sectionsCumulativeSizeBytes = 0;
         for (let sectionBuffer of sectionBuffers) sectionsCumulativeSizeBytes += sectionBuffer.byteLength;
         const unifiedBufferSize = SplatBuffer.HeaderSizeBytes +
-                                  SplatBuffer.SectionHeaderSizeBytes * sectionBuffers.length + sectionsCumulativeSizeBytes;
+            SplatBuffer.SectionHeaderSizeBytes * sectionBuffers.length + sectionsCumulativeSizeBytes;
         const unifiedBuffer = new ArrayBuffer(unifiedBufferSize);
 
         SplatBuffer.writeHeaderToBuffer({
@@ -1758,8 +1766,8 @@ class SplatBuffer {
         for (let i = 0; i < splatCount; i++) {
             const targetSplat = splatArray.splats[i];
             const center = [targetSplat[UncompressedSplatArray.OFFSET.X],
-                            targetSplat[UncompressedSplatArray.OFFSET.Y],
-                            targetSplat[UncompressedSplatArray.OFFSET.Z]];
+            targetSplat[UncompressedSplatArray.OFFSET.Y],
+            targetSplat[UncompressedSplatArray.OFFSET.Z]];
             if (i === 0 || center[0] < min.x) min.x = center[0];
             if (i === 0 || center[0] > max.x) max.x = center[0];
             if (i === 0 || center[1] < min.y) min.y = center[1];
@@ -1779,8 +1787,8 @@ class SplatBuffer {
         for (let i = 0; i < splatCount; i++) {
             const targetSplat = splatArray.splats[i];
             const center = [targetSplat[UncompressedSplatArray.OFFSET.X],
-                            targetSplat[UncompressedSplatArray.OFFSET.Y],
-                            targetSplat[UncompressedSplatArray.OFFSET.Z]];
+            targetSplat[UncompressedSplatArray.OFFSET.Y],
+            targetSplat[UncompressedSplatArray.OFFSET.Z]];
             const xBlock = Math.floor((center[0] - min.x) / blockSize);
             const yBlock = Math.floor((center[1] - min.y) / blockSize);
             const zBlock = Math.floor((center[2] - min.z) / blockSize);
@@ -1862,581 +1870,581 @@ const HeaderEndTokenBytes = new Uint8Array([10, 101, 110, 100, 95, 104, 101, 97,
 const HeaderEndToken = 'end_header';
 
 const DataTypeMap = new Map([
-  ['char', Int8Array],
-  ['uchar', Uint8Array],
-  ['short', Int16Array],
-  ['ushort', Uint16Array],
-  ['int', Int32Array],
-  ['uint', Uint32Array],
-  ['float', Float32Array],
-  ['double', Float64Array],
+    ['char', Int8Array],
+    ['uchar', Uint8Array],
+    ['short', Int16Array],
+    ['ushort', Uint16Array],
+    ['int', Int32Array],
+    ['uint', Uint32Array],
+    ['float', Float32Array],
+    ['double', Float64Array],
 ]);
 
 const unpackUnorm = (value, bits) => {
-  const t = (1 << bits) - 1;
-  return (value & t) / t;
+    const t = (1 << bits) - 1;
+    return (value & t) / t;
 };
 
 const unpack111011 = (result, value) => {
-  result.x = unpackUnorm(value >>> 21, 11);
-  result.y = unpackUnorm(value >>> 11, 10);
-  result.z = unpackUnorm(value, 11);
+    result.x = unpackUnorm(value >>> 21, 11);
+    result.y = unpackUnorm(value >>> 11, 10);
+    result.z = unpackUnorm(value, 11);
 };
 
 const unpack8888 = (result, value) => {
-  result.x = unpackUnorm(value >>> 24, 8);
-  result.y = unpackUnorm(value >>> 16, 8);
-  result.z = unpackUnorm(value >>> 8, 8);
-  result.w = unpackUnorm(value, 8);
+    result.x = unpackUnorm(value >>> 24, 8);
+    result.y = unpackUnorm(value >>> 16, 8);
+    result.z = unpackUnorm(value >>> 8, 8);
+    result.w = unpackUnorm(value, 8);
 };
 
 // unpack quaternion with 2,10,10,10 format (largest element, 3x10bit element)
 const unpackRot = (result, value) => {
-  const norm = 1.0 / (Math.sqrt(2) * 0.5);
-  const a = (unpackUnorm(value >>> 20, 10) - 0.5) * norm;
-  const b = (unpackUnorm(value >>> 10, 10) - 0.5) * norm;
-  const c = (unpackUnorm(value, 10) - 0.5) * norm;
-  const m = Math.sqrt(1.0 - (a * a + b * b + c * c));
+    const norm = 1.0 / (Math.sqrt(2) * 0.5);
+    const a = (unpackUnorm(value >>> 20, 10) - 0.5) * norm;
+    const b = (unpackUnorm(value >>> 10, 10) - 0.5) * norm;
+    const c = (unpackUnorm(value, 10) - 0.5) * norm;
+    const m = Math.sqrt(1.0 - (a * a + b * b + c * c));
 
-  switch (value >>> 30) {
-    case 0:
-      result.set(m, a, b, c);
-      break;
-    case 1:
-      result.set(a, m, b, c);
-      break;
-    case 2:
-      result.set(a, b, m, c);
-      break;
-    case 3:
-      result.set(a, b, c, m);
-      break;
-  }
+    switch (value >>> 30) {
+        case 0:
+            result.set(m, a, b, c);
+            break;
+        case 1:
+            result.set(a, m, b, c);
+            break;
+        case 2:
+            result.set(a, b, m, c);
+            break;
+        case 3:
+            result.set(a, b, c, m);
+            break;
+    }
 };
 
 const lerp = (a, b, t) => {
-  return a * (1 - t) + b * t;
+    return a * (1 - t) + b * t;
 };
 
 const getElementPropStorage = (element, name) => {
-  return element.properties.find((p) => p.name === name && p.storage)
-    ?.storage;
+    return element.properties.find((p) => p.name === name && p.storage)
+        ?.storage;
 };
 
 class PlayCanvasCompressedPlyParser {
 
-  static decodeHeaderText(headerText) {
+    static decodeHeaderText(headerText) {
 
-    let element;
-    let chunkElement;
-    let vertexElement;
-    let shElement;
+        let element;
+        let chunkElement;
+        let vertexElement;
+        let shElement;
 
-    const headerLines = headerText.split('\n').filter((line) => !line.startsWith('comment '));
+        const headerLines = headerText.split('\n').filter((line) => !line.startsWith('comment '));
 
-    let bytesPerSplat = 0;
-    let done = false;
-    for (let i = 1; i < headerLines.length; ++i) {
-      const words = headerLines[i].split(' ');
+        let bytesPerSplat = 0;
+        let done = false;
+        for (let i = 1; i < headerLines.length; ++i) {
+            const words = headerLines[i].split(' ');
 
-      switch (words[0]) {
-        case 'format':
-          if (words[1] !== 'binary_little_endian') {
-            throw new Error('Unsupported ply format');
-          }
-          break;
-        case 'element':
-          element = {
-            name: words[1],
-            count: parseInt(words[2], 10),
-            properties: [],
-            storageSizeBytes: 0
-          };
-          if (element.name === 'chunk') chunkElement = element;
-          else if (element.name === 'vertex') vertexElement = element;
-          else if (element.name === 'sh') shElement = element;
-          break;
-        case 'property': {
-          if (!DataTypeMap.has(words[1])) {
-            throw new Error(
-              `Unrecognized property data type '${words[1]}' in ply header`
+            switch (words[0]) {
+                case 'format':
+                    if (words[1] !== 'binary_little_endian') {
+                        throw new Error('Unsupported ply format');
+                    }
+                    break;
+                case 'element':
+                    element = {
+                        name: words[1],
+                        count: parseInt(words[2], 10),
+                        properties: [],
+                        storageSizeBytes: 0
+                    };
+                    if (element.name === 'chunk') chunkElement = element;
+                    else if (element.name === 'vertex') vertexElement = element;
+                    else if (element.name === 'sh') shElement = element;
+                    break;
+                case 'property': {
+                    if (!DataTypeMap.has(words[1])) {
+                        throw new Error(
+                            `Unrecognized property data type '${words[1]}' in ply header`
+                        );
+                    }
+                    const StorageType = DataTypeMap.get(words[1]);
+                    const storageSizeByes = StorageType.BYTES_PER_ELEMENT * element.count;
+                    if (element.name === 'vertex') bytesPerSplat += StorageType.BYTES_PER_ELEMENT;
+                    element.properties.push({
+                        type: words[1],
+                        name: words[2],
+                        storage: null,
+                        byteSize: StorageType.BYTES_PER_ELEMENT,
+                        storageSizeByes: storageSizeByes
+                    });
+                    element.storageSizeBytes += storageSizeByes;
+                    break;
+                }
+                case HeaderEndToken:
+                    done = true;
+                    break;
+                default:
+                    throw new Error(
+                        `Unrecognized header value '${words[0]}' in ply header`
+                    );
+            }
+            if (done) break;
+        }
+
+        let sphericalHarmonicsDegree = 0;
+        let sphericalHarmonicsPerSplat = 0;
+        if (shElement) {
+            sphericalHarmonicsPerSplat = shElement.properties.length;
+            if (shElement.properties.length >= 45) {
+                sphericalHarmonicsDegree = 3;
+            } else if (shElement.properties.length >= 24) {
+                sphericalHarmonicsDegree = 2;
+            } else if (shElement.properties.length >= 9) {
+                sphericalHarmonicsDegree = 1;
+            }
+        }
+
+        return {
+            'chunkElement': chunkElement,
+            'vertexElement': vertexElement,
+            'shElement': shElement,
+            'bytesPerSplat': bytesPerSplat,
+            'headerSizeBytes': headerText.indexOf(HeaderEndToken) + HeaderEndToken.length + 1,
+            'sphericalHarmonicsDegree': sphericalHarmonicsDegree,
+            'sphericalHarmonicsPerSplat': sphericalHarmonicsPerSplat
+        };
+    }
+
+    static decodeHeader(plyBuffer) {
+
+        /**
+         * Searches for the first occurrence of a sequence within a buffer.
+         * @example
+         * find(new Uint8Array([1, 2, 3, 4]), new Uint8Array([3, 4])); // 2
+         * @param {Uint8Array} buf - The buffer in which to search.
+         * @param {Uint8Array} search - The sequence to search for.
+         * @return {number} The index of the first occurrence of the search sequence in the buffer, or -1 if not found.
+         */
+        const find = (buf, search) => {
+            const endIndex = buf.length - search.length;
+            let i;
+            let j;
+            for (i = 0; i <= endIndex; ++i) {
+                for (j = 0; j < search.length; ++j) {
+                    if (buf[i + j] !== search[j]) {
+                        break;
+                    }
+                }
+                if (j === search.length) {
+                    return i;
+                }
+            }
+            return -1;
+        };
+
+        /**
+         * Checks if array 'a' starts with the same elements as array 'b'.
+         * @example
+         * startsWith(new Uint8Array([1, 2, 3, 4]), new Uint8Array([1, 2])); // true
+         * @param {Uint8Array} a - The array to check against.
+         * @param {Uint8Array} b - The array of elements to look for at the start of 'a'.
+         * @return {boolean} - True if 'a' starts with all elements of 'b', otherwise false.
+         */
+        const startsWith = (a, b) => {
+            if (a.length < b.length) {
+                return false;
+            }
+
+            for (let i = 0; i < b.length; ++i) {
+                if (a[i] !== b[i]) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        let buf = new Uint8Array(plyBuffer);
+        let endHeaderTokenOffset;
+
+        if (buf.length >= HeaderMagicBytes.length && !startsWith(buf, HeaderMagicBytes)) {
+            throw new Error('Invalid PLY header');
+        }
+
+        endHeaderTokenOffset = find(buf, HeaderEndTokenBytes);
+        if (endHeaderTokenOffset === -1) {
+            throw new Error('End of PLY header not found');
+        }
+
+        const headerText = new TextDecoder('ascii').decode(
+            buf.slice(0, endHeaderTokenOffset)
+        );
+
+        const {
+            chunkElement,
+            vertexElement,
+            shElement,
+            sphericalHarmonicsDegree,
+            sphericalHarmonicsPerSplat,
+            bytesPerSplat
+        } = PlayCanvasCompressedPlyParser.decodeHeaderText(headerText);
+
+        return {
+            'headerSizeBytes': endHeaderTokenOffset + HeaderEndTokenBytes.length,
+            'bytesPerSplat': bytesPerSplat,
+            'chunkElement': chunkElement,
+            'vertexElement': vertexElement,
+            'shElement': shElement,
+            'sphericalHarmonicsDegree': sphericalHarmonicsDegree,
+            'sphericalHarmonicsPerSplat': sphericalHarmonicsPerSplat
+        };
+    }
+
+    static readElementData(element, readBuffer, readOffset, fromIndex, toIndex, propertyFilter = null) {
+
+        let dataView = readBuffer instanceof DataView ? readBuffer : new DataView(readBuffer);
+
+        fromIndex = fromIndex || 0;
+        toIndex = toIndex || element.count - 1;
+        for (let e = fromIndex; e <= toIndex; ++e) {
+            for (let j = 0; j < element.properties.length; ++j) {
+                const property = element.properties[j];
+
+                const StorageType = DataTypeMap.get(property.type);
+                const requiredStorageSizeBytes = StorageType.BYTES_PER_ELEMENT * element.count;
+                if ((!property.storage || property.storage.byteLength < requiredStorageSizeBytes) &&
+                    (!propertyFilter || propertyFilter(property.name))) {
+                    property.storage = new StorageType(element.count);
+                }
+
+                if (property.storage) {
+                    switch (property.type) {
+                        case 'char':
+                            property.storage[e] = dataView.getInt8(readOffset);
+                            break;
+                        case 'uchar':
+                            property.storage[e] = dataView.getUint8(readOffset);
+                            break;
+                        case 'short':
+                            property.storage[e] = dataView.getInt16(readOffset, true);
+                            break;
+                        case 'ushort':
+                            property.storage[e] = dataView.getUint16(readOffset, true);
+                            break;
+                        case 'int':
+                            property.storage[e] = dataView.getInt32(readOffset, true);
+                            break;
+                        case 'uint':
+                            property.storage[e] = dataView.getUint32(readOffset, true);
+                            break;
+                        case 'float':
+                            property.storage[e] = dataView.getFloat32(readOffset, true);
+                            break;
+                        case 'double':
+                            property.storage[e] = dataView.getFloat64(readOffset, true);
+                            break;
+                    }
+                }
+
+                readOffset += property.byteSize;
+            }
+        }
+
+        return readOffset;
+    }
+
+    static readPly(plyBuffer, propertyFilter = null) {
+
+        const header = PlayCanvasCompressedPlyParser.decodeHeader(plyBuffer);
+
+        let readIndex = PlayCanvasCompressedPlyParser.readElementData(header.chunkElement, plyBuffer,
+            header.headerSizeBytes, null, null, propertyFilter);
+        readIndex = PlayCanvasCompressedPlyParser.readElementData(header.vertexElement, plyBuffer, readIndex, null, null, propertyFilter);
+        PlayCanvasCompressedPlyParser.readElementData(header.shElement, plyBuffer, readIndex, null, null, propertyFilter);
+
+        return {
+            'chunkElement': header.chunkElement,
+            'vertexElement': header.vertexElement,
+            'shElement': header.shElement,
+            'sphericalHarmonicsDegree': header.sphericalHarmonicsDegree,
+            'sphericalHarmonicsPerSplat': header.sphericalHarmonicsPerSplat
+        };
+    }
+
+    static getElementStorageArrays(chunkElement, vertexElement, shElement) {
+        const storageArrays = {};
+
+        if (vertexElement) {
+            const minR = getElementPropStorage(chunkElement, 'min_r');
+            const minG = getElementPropStorage(chunkElement, 'min_g');
+            const minB = getElementPropStorage(chunkElement, 'min_b');
+            const maxR = getElementPropStorage(chunkElement, 'max_r');
+            const maxG = getElementPropStorage(chunkElement, 'max_g');
+            const maxB = getElementPropStorage(chunkElement, 'max_b');
+            const minX = getElementPropStorage(chunkElement, 'min_x');
+            const minY = getElementPropStorage(chunkElement, 'min_y');
+            const minZ = getElementPropStorage(chunkElement, 'min_z');
+            const maxX = getElementPropStorage(chunkElement, 'max_x');
+            const maxY = getElementPropStorage(chunkElement, 'max_y');
+            const maxZ = getElementPropStorage(chunkElement, 'max_z');
+            const minScaleX = getElementPropStorage(chunkElement, 'min_scale_x');
+            const minScaleY = getElementPropStorage(chunkElement, 'min_scale_y');
+            const minScaleZ = getElementPropStorage(chunkElement, 'min_scale_z');
+            const maxScaleX = getElementPropStorage(chunkElement, 'max_scale_x');
+            const maxScaleY = getElementPropStorage(chunkElement, 'max_scale_y');
+            const maxScaleZ = getElementPropStorage(chunkElement, 'max_scale_z');
+            const position = getElementPropStorage(vertexElement, 'packed_position');
+            const rotation = getElementPropStorage(vertexElement, 'packed_rotation');
+            const scale = getElementPropStorage(vertexElement, 'packed_scale');
+            const color = getElementPropStorage(vertexElement, 'packed_color');
+
+            storageArrays['colorExtremes'] = {
+                minR, maxR,
+                minG, maxG,
+                minB, maxB
+            };
+            storageArrays['positionExtremes'] = {
+                minX, maxX,
+                minY, maxY,
+                minZ, maxZ
+            };
+            storageArrays['scaleExtremes'] = {
+                minScaleX, maxScaleX, minScaleY,
+                maxScaleY, minScaleZ, maxScaleZ
+            };
+            storageArrays['position'] = position;
+            storageArrays['rotation'] = rotation;
+            storageArrays['scale'] = scale;
+            storageArrays['color'] = color;
+        }
+
+        if (shElement) {
+            const shStorageArrays = {};
+            for (let i = 0; i < 45; i++) {
+                const fRestKey = `f_rest_${i}`;
+                const fRest = getElementPropStorage(shElement, fRestKey);
+                if (fRest) {
+                    shStorageArrays[fRestKey] = fRest;
+                } else {
+                    break;
+                }
+            }
+            storageArrays['sh'] = shStorageArrays;
+        }
+
+        return storageArrays;
+    }
+
+    static decompressBaseSplat = function () {
+
+        const p = new THREE.Vector3();
+        const r = new THREE.Quaternion();
+        const s = new THREE.Vector3();
+        const c = new THREE.Vector4();
+
+        const OFFSET = UncompressedSplatArray.OFFSET;
+
+        return function (index, chunkSplatIndexOffset, positionArray, positionExtremes, scaleArray, scaleExtremes,
+            rotationArray, colorExtremes, colorArray, outSplat) {
+            outSplat = outSplat || UncompressedSplatArray.createSplat();
+
+            const chunkIndex = Math.floor((chunkSplatIndexOffset + index) / 256);
+
+            unpack111011(p, positionArray[index]);
+            unpackRot(r, rotationArray[index]);
+            unpack111011(s, scaleArray[index]);
+            unpack8888(c, colorArray[index]);
+
+            outSplat[OFFSET.X] = lerp(positionExtremes.minX[chunkIndex], positionExtremes.maxX[chunkIndex], p.x);
+            outSplat[OFFSET.Y] = lerp(positionExtremes.minY[chunkIndex], positionExtremes.maxY[chunkIndex], p.y);
+            outSplat[OFFSET.Z] = lerp(positionExtremes.minZ[chunkIndex], positionExtremes.maxZ[chunkIndex], p.z);
+
+            outSplat[OFFSET.ROTATION0] = r.x;
+            outSplat[OFFSET.ROTATION1] = r.y;
+            outSplat[OFFSET.ROTATION2] = r.z;
+            outSplat[OFFSET.ROTATION3] = r.w;
+
+            outSplat[OFFSET.SCALE0] = Math.exp(lerp(scaleExtremes.minScaleX[chunkIndex], scaleExtremes.maxScaleX[chunkIndex], s.x));
+            outSplat[OFFSET.SCALE1] = Math.exp(lerp(scaleExtremes.minScaleY[chunkIndex], scaleExtremes.maxScaleY[chunkIndex], s.y));
+            outSplat[OFFSET.SCALE2] = Math.exp(lerp(scaleExtremes.minScaleZ[chunkIndex], scaleExtremes.maxScaleZ[chunkIndex], s.z));
+
+            if (colorExtremes.minR && colorExtremes.maxR) {
+                outSplat[OFFSET.FDC0] = clamp(Math.round(lerp(colorExtremes.minR[chunkIndex], colorExtremes.maxR[chunkIndex], c.x) * 255), 0, 255);
+            } else {
+                outSplat[OFFSET.FDC0] = clamp(Math.floor(c.x * 255), 0, 255);
+            }
+            if (colorExtremes.minG && colorExtremes.maxG) {
+                outSplat[OFFSET.FDC1] = clamp(Math.round(lerp(colorExtremes.minG[chunkIndex], colorExtremes.maxG[chunkIndex], c.y) * 255), 0, 255);
+            } else {
+                outSplat[OFFSET.FDC1] = clamp(Math.floor(c.y * 255), 0, 255);
+            }
+            if (colorExtremes.minB && colorExtremes.maxB) {
+                outSplat[OFFSET.FDC2] = clamp(Math.round(lerp(colorExtremes.minB[chunkIndex], colorExtremes.maxB[chunkIndex], c.z) * 255), 0, 255);
+            } else {
+                outSplat[OFFSET.FDC2] = clamp(Math.floor(c.z * 255), 0, 255);
+            }
+            outSplat[OFFSET.OPACITY] = clamp(Math.floor(c.w * 255), 0, 255);
+
+            return outSplat;
+        };
+
+    }();
+
+    static decompressSphericalHarmonics = function () {
+
+        const shCoeffMap = [0, 3, 8, 15];
+
+        const shIndexMap = [
+            0, 1, 2, 9, 10, 11, 12, 13, 24, 25, 26, 27, 28, 29, 30,
+            3, 4, 5, 14, 15, 16, 17, 18, 31, 32, 33, 34, 35, 36, 37,
+            6, 7, 8, 19, 20, 21, 22, 23, 38, 39, 40, 41, 42, 43, 44
+        ];
+
+        return function (index, shArray, outSphericalHarmonicsDegree, readSphericalHarmonicsDegree, outSplat) {
+            outSplat = outSplat || UncompressedSplatArray.createSplat();
+            let outSHCoeff = shCoeffMap[outSphericalHarmonicsDegree];
+            let readSHCoeff = shCoeffMap[readSphericalHarmonicsDegree];
+            for (let j = 0; j < 3; ++j) {
+                for (let k = 0; k < 15; ++k) {
+                    const outIndex = shIndexMap[j * 15 + k];
+                    if (k < outSHCoeff && k < readSHCoeff) {
+                        outSplat[UncompressedSplatArray.OFFSET.FRC0 + outIndex] = (shArray[j * readSHCoeff + k][index] * (8 / 255) - 4);
+                    }
+                }
+            }
+
+            return outSplat;
+        };
+
+    }();
+
+    static parseToUncompressedSplatBufferSection(chunkElement, vertexElement, fromIndex, toIndex, chunkSplatIndexOffset,
+        vertexDataBuffer, outBuffer, outOffset, propertyFilter = null) {
+
+        PlayCanvasCompressedPlyParser.readElementData(vertexElement, vertexDataBuffer, 0, fromIndex, toIndex, propertyFilter);
+
+        const outBytesPerSplat = SplatBuffer.CompressionLevels[0].SphericalHarmonicsDegrees[0].BytesPerSplat;
+
+        const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
+            PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
+
+        const tempSplat = UncompressedSplatArray.createSplat();
+
+        for (let i = fromIndex; i <= toIndex; ++i) {
+            PlayCanvasCompressedPlyParser.decompressBaseSplat(i, chunkSplatIndexOffset, position, positionExtremes,
+                scale, scaleExtremes, rotation, colorExtremes, color, tempSplat);
+            const outBase = i * outBytesPerSplat + outOffset;
+            SplatBuffer.writeSplatDataToSectionBuffer(tempSplat, outBuffer, outBase, 0, 0);
+        }
+    }
+
+    static parseToUncompressedSplatArraySection(chunkElement, vertexElement, fromIndex, toIndex, chunkSplatIndexOffset,
+        vertexDataBuffer, splatArray, propertyFilter = null) {
+
+        PlayCanvasCompressedPlyParser.readElementData(vertexElement, vertexDataBuffer, 0, fromIndex, toIndex, propertyFilter);
+
+        const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
+            PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
+
+        for (let i = fromIndex; i <= toIndex; ++i) {
+            const tempSplat = UncompressedSplatArray.createSplat();
+            PlayCanvasCompressedPlyParser.decompressBaseSplat(i, chunkSplatIndexOffset, position, positionExtremes,
+                scale, scaleExtremes, rotation, colorExtremes, color, tempSplat);
+            splatArray.addSplat(tempSplat);
+        }
+    }
+
+    static parseSphericalHarmonicsToUncompressedSplatArraySection(chunkElement, shElement, fromIndex, toIndex,
+        vertexDataBuffer, vertexReadOffset, outSphericalHarmonicsDegree, readSphericalHarmonicsDegree, splatArray, propertyFilter = null) {
+
+        PlayCanvasCompressedPlyParser.readElementData(shElement, vertexDataBuffer, vertexReadOffset, fromIndex, toIndex, propertyFilter);
+
+        const { sh } = PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, undefined, shElement);
+        const shArrays = Object.values(sh);
+
+        for (let i = fromIndex; i <= toIndex; ++i) {
+            PlayCanvasCompressedPlyParser.decompressSphericalHarmonics(
+                i, shArrays, outSphericalHarmonicsDegree, readSphericalHarmonicsDegree, splatArray.splats[i]
             );
-          }
-          const StorageType = DataTypeMap.get(words[1]);
-          const storageSizeByes = StorageType.BYTES_PER_ELEMENT * element.count;
-          if (element.name === 'vertex') bytesPerSplat += StorageType.BYTES_PER_ELEMENT;
-          element.properties.push({
-            type: words[1],
-            name: words[2],
-            storage: null,
-            byteSize: StorageType.BYTES_PER_ELEMENT,
-            storageSizeByes: storageSizeByes
-          });
-          element.storageSizeBytes += storageSizeByes;
-          break;
         }
-        case HeaderEndToken:
-          done = true;
-        break;
-        default:
-          throw new Error(
-            `Unrecognized header value '${words[0]}' in ply header`
-          );
-      }
-      if (done) break;
     }
 
-    let sphericalHarmonicsDegree = 0;
-    let sphericalHarmonicsPerSplat = 0;
-    if (shElement) {
-      sphericalHarmonicsPerSplat = shElement.properties.length;
-      if (shElement.properties.length >= 45) {
-        sphericalHarmonicsDegree = 3;
-      } else if (shElement.properties.length >= 24) {
-        sphericalHarmonicsDegree = 2;
-      } else if (shElement.properties.length >= 9) {
-        sphericalHarmonicsDegree = 1;
-      }
-    }
+    static parseToUncompressedSplatArray(plyBuffer, outSphericalHarmonicsDegree) {
+        const { chunkElement, vertexElement, shElement, sphericalHarmonicsDegree } = PlayCanvasCompressedPlyParser.readPly(plyBuffer);
 
-    return {
-      'chunkElement': chunkElement,
-      'vertexElement': vertexElement,
-      'shElement': shElement,
-      'bytesPerSplat': bytesPerSplat,
-      'headerSizeBytes': headerText.indexOf(HeaderEndToken) + HeaderEndToken.length + 1,
-      'sphericalHarmonicsDegree': sphericalHarmonicsDegree,
-      'sphericalHarmonicsPerSplat': sphericalHarmonicsPerSplat
-    };
-  }
+        outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, sphericalHarmonicsDegree);
 
-  static decodeHeader(plyBuffer) {
+        const splatArray = new UncompressedSplatArray(outSphericalHarmonicsDegree);
 
-    /**
-     * Searches for the first occurrence of a sequence within a buffer.
-     * @example
-     * find(new Uint8Array([1, 2, 3, 4]), new Uint8Array([3, 4])); // 2
-     * @param {Uint8Array} buf - The buffer in which to search.
-     * @param {Uint8Array} search - The sequence to search for.
-     * @return {number} The index of the first occurrence of the search sequence in the buffer, or -1 if not found.
-     */
-    const find = (buf, search) => {
-      const endIndex = buf.length - search.length;
-      let i;
-      let j;
-      for (i = 0; i <= endIndex; ++i) {
-        for (j = 0; j < search.length; ++j) {
-          if (buf[i + j] !== search[j]) {
-            break;
-          }
-        }
-        if (j === search.length) {
-          return i;
-        }
-      }
-      return -1;
-    };
+        const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
+            PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
 
-    /**
-     * Checks if array 'a' starts with the same elements as array 'b'.
-     * @example
-     * startsWith(new Uint8Array([1, 2, 3, 4]), new Uint8Array([1, 2])); // true
-     * @param {Uint8Array} a - The array to check against.
-     * @param {Uint8Array} b - The array of elements to look for at the start of 'a'.
-     * @return {boolean} - True if 'a' starts with all elements of 'b', otherwise false.
-     */
-    const startsWith = (a, b) => {
-      if (a.length < b.length) {
-        return false;
-      }
-
-      for (let i = 0; i < b.length; ++i) {
-        if (a[i] !== b[i]) {
-          return false;
-        }
-      }
-
-      return true;
-    };
-
-    let buf = new Uint8Array(plyBuffer);
-    let endHeaderTokenOffset;
-
-    if (buf.length >= HeaderMagicBytes.length && !startsWith(buf, HeaderMagicBytes)) {
-      throw new Error('Invalid PLY header');
-    }
-
-    endHeaderTokenOffset = find(buf, HeaderEndTokenBytes);
-    if (endHeaderTokenOffset === -1) {
-      throw new Error('End of PLY header not found');
-    }
-
-    const headerText = new TextDecoder('ascii').decode(
-      buf.slice(0, endHeaderTokenOffset)
-    );
-
-    const {
-      chunkElement,
-      vertexElement,
-      shElement,
-      sphericalHarmonicsDegree,
-      sphericalHarmonicsPerSplat,
-      bytesPerSplat
-    } = PlayCanvasCompressedPlyParser.decodeHeaderText(headerText);
-
-    return {
-      'headerSizeBytes': endHeaderTokenOffset + HeaderEndTokenBytes.length,
-      'bytesPerSplat': bytesPerSplat,
-      'chunkElement': chunkElement,
-      'vertexElement': vertexElement,
-      'shElement': shElement,
-      'sphericalHarmonicsDegree': sphericalHarmonicsDegree,
-      'sphericalHarmonicsPerSplat': sphericalHarmonicsPerSplat
-    };
-  }
-
-  static readElementData(element, readBuffer, readOffset, fromIndex, toIndex, propertyFilter = null) {
-
-    let dataView = readBuffer instanceof DataView ? readBuffer : new DataView(readBuffer);
-
-    fromIndex = fromIndex || 0;
-    toIndex = toIndex || element.count - 1;
-    for (let e = fromIndex; e <= toIndex; ++e) {
-      for (let j = 0; j < element.properties.length; ++j) {
-        const property = element.properties[j];
-
-        const StorageType = DataTypeMap.get(property.type);
-        const requiredStorageSizeBytes = StorageType.BYTES_PER_ELEMENT * element.count;
-        if ((!property.storage || property.storage.byteLength < requiredStorageSizeBytes) &&
-            (!propertyFilter || propertyFilter(property.name))) {
-          property.storage = new StorageType(element.count);
+        let shArrays;
+        if (outSphericalHarmonicsDegree > 0) {
+            const { sh } = PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, undefined, shElement);
+            shArrays = Object.values(sh);
         }
 
-        if (property.storage) {
-          switch (property.type) {
-            case 'char':
-              property.storage[e] = dataView.getInt8(readOffset);
-              break;
-            case 'uchar':
-              property.storage[e] = dataView.getUint8(readOffset);
-              break;
-            case 'short':
-              property.storage[e] = dataView.getInt16(readOffset, true);
-              break;
-            case 'ushort':
-              property.storage[e] = dataView.getUint16(readOffset, true);
-              break;
-            case 'int':
-              property.storage[e] = dataView.getInt32(readOffset, true);
-              break;
-            case 'uint':
-              property.storage[e] = dataView.getUint32(readOffset, true);
-              break;
-            case 'float':
-              property.storage[e] = dataView.getFloat32(readOffset, true);
-              break;
-            case 'double':
-              property.storage[e] = dataView.getFloat64(readOffset, true);
-              break;
-          }
+        for (let i = 0; i < vertexElement.count; ++i) {
+
+            splatArray.addDefaultSplat();
+            const newSplat = splatArray.getSplat(splatArray.splatCount - 1);
+
+            PlayCanvasCompressedPlyParser.decompressBaseSplat(i, 0, position, positionExtremes, scale,
+                scaleExtremes, rotation, colorExtremes, color, newSplat);
+
+            if (outSphericalHarmonicsDegree > 0) {
+                PlayCanvasCompressedPlyParser.decompressSphericalHarmonics(
+                    i, shArrays, outSphericalHarmonicsDegree, sphericalHarmonicsDegree, newSplat
+                );
+            }
         }
 
-        readOffset += property.byteSize;
-      }
+        return splatArray;
     }
 
-    return readOffset;
-  }
+    static parseToUncompressedSplatBuffer(plyBuffer, outSphericalHarmonicsDegree) {
+        const { chunkElement, vertexElement, shElement, sphericalHarmonicsDegree } = PlayCanvasCompressedPlyParser.readPly(plyBuffer);
 
-  static readPly(plyBuffer, propertyFilter = null) {
+        outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, sphericalHarmonicsDegree);
 
-    const header = PlayCanvasCompressedPlyParser.decodeHeader(plyBuffer);
+        const {
+            splatBuffer,
+            splatBufferDataOffsetBytes
+        } = SplatBuffer.preallocateUncompressed(vertexElement.count, outSphericalHarmonicsDegree);
 
-    let readIndex = PlayCanvasCompressedPlyParser.readElementData(header.chunkElement, plyBuffer,
-                                                                  header.headerSizeBytes, null, null, propertyFilter);
-    readIndex = PlayCanvasCompressedPlyParser.readElementData(header.vertexElement, plyBuffer, readIndex, null, null, propertyFilter);
-    PlayCanvasCompressedPlyParser.readElementData(header.shElement, plyBuffer, readIndex, null, null, propertyFilter);
+        const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
+            PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
 
-    return {
-      'chunkElement': header.chunkElement,
-      'vertexElement': header.vertexElement,
-      'shElement': header.shElement,
-      'sphericalHarmonicsDegree': header.sphericalHarmonicsDegree,
-      'sphericalHarmonicsPerSplat': header.sphericalHarmonicsPerSplat
-    };
-  }
-
-  static getElementStorageArrays(chunkElement, vertexElement, shElement) {
-    const storageArrays = {};
-
-    if (vertexElement) {
-      const minR = getElementPropStorage(chunkElement, 'min_r');
-      const minG = getElementPropStorage(chunkElement, 'min_g');
-      const minB = getElementPropStorage(chunkElement, 'min_b');
-      const maxR = getElementPropStorage(chunkElement, 'max_r');
-      const maxG = getElementPropStorage(chunkElement, 'max_g');
-      const maxB = getElementPropStorage(chunkElement, 'max_b');
-      const minX = getElementPropStorage(chunkElement, 'min_x');
-      const minY = getElementPropStorage(chunkElement, 'min_y');
-      const minZ = getElementPropStorage(chunkElement, 'min_z');
-      const maxX = getElementPropStorage(chunkElement, 'max_x');
-      const maxY = getElementPropStorage(chunkElement, 'max_y');
-      const maxZ = getElementPropStorage(chunkElement, 'max_z');
-      const minScaleX = getElementPropStorage(chunkElement, 'min_scale_x');
-      const minScaleY = getElementPropStorage(chunkElement, 'min_scale_y');
-      const minScaleZ = getElementPropStorage(chunkElement, 'min_scale_z');
-      const maxScaleX = getElementPropStorage(chunkElement, 'max_scale_x');
-      const maxScaleY = getElementPropStorage(chunkElement, 'max_scale_y');
-      const maxScaleZ = getElementPropStorage(chunkElement, 'max_scale_z');
-      const position = getElementPropStorage(vertexElement, 'packed_position');
-      const rotation = getElementPropStorage(vertexElement, 'packed_rotation');
-      const scale = getElementPropStorage(vertexElement, 'packed_scale');
-      const color = getElementPropStorage(vertexElement, 'packed_color');
-
-      storageArrays['colorExtremes'] = {
-        minR, maxR,
-        minG, maxG,
-        minB, maxB
-      };
-      storageArrays['positionExtremes'] = {
-        minX, maxX,
-        minY, maxY,
-        minZ, maxZ
-      };
-      storageArrays['scaleExtremes'] = {
-        minScaleX, maxScaleX, minScaleY,
-        maxScaleY, minScaleZ, maxScaleZ
-      };
-      storageArrays['position'] = position;
-      storageArrays['rotation'] = rotation;
-      storageArrays['scale'] = scale;
-      storageArrays['color'] = color;
-    }
-
-    if (shElement) {
-      const shStorageArrays = {};
-      for (let i = 0; i < 45; i++) {
-        const fRestKey = `f_rest_${i}`;
-        const fRest = getElementPropStorage(shElement, fRestKey);
-        if (fRest) {
-          shStorageArrays[fRestKey] = fRest;
-        } else {
-          break;
+        let shArrays;
+        if (outSphericalHarmonicsDegree > 0) {
+            const { sh } = PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, undefined, shElement);
+            shArrays = Object.values(sh);
         }
-      }
-      storageArrays['sh'] = shStorageArrays;
-    }
 
-    return storageArrays;
-  }
+        const outBytesPerSplat = SplatBuffer.CompressionLevels[0].SphericalHarmonicsDegrees[outSphericalHarmonicsDegree].BytesPerSplat;
 
-  static decompressBaseSplat = function() {
+        const newSplat = UncompressedSplatArray.createSplat(outSphericalHarmonicsDegree);
 
-    const p = new THREE.Vector3();
-    const r = new THREE.Quaternion();
-    const s = new THREE.Vector3();
-    const c = new THREE.Vector4();
+        for (let i = 0; i < vertexElement.count; ++i) {
+            PlayCanvasCompressedPlyParser.decompressBaseSplat(
+                i, 0, position, positionExtremes, scale, scaleExtremes, rotation, colorExtremes, color, newSplat
+            );
+            if (outSphericalHarmonicsDegree > 0) {
+                PlayCanvasCompressedPlyParser.decompressSphericalHarmonics(
+                    i, shArrays, outSphericalHarmonicsDegree, sphericalHarmonicsDegree, newSplat
+                );
+            }
 
-    const OFFSET = UncompressedSplatArray.OFFSET;
-
-    return function(index, chunkSplatIndexOffset, positionArray, positionExtremes, scaleArray, scaleExtremes,
-                    rotationArray, colorExtremes, colorArray, outSplat) {
-      outSplat = outSplat || UncompressedSplatArray.createSplat();
-
-      const chunkIndex = Math.floor((chunkSplatIndexOffset + index) / 256);
-
-      unpack111011(p, positionArray[index]);
-      unpackRot(r, rotationArray[index]);
-      unpack111011(s, scaleArray[index]);
-      unpack8888(c, colorArray[index]);
-
-      outSplat[OFFSET.X] = lerp(positionExtremes.minX[chunkIndex], positionExtremes.maxX[chunkIndex], p.x);
-      outSplat[OFFSET.Y] = lerp(positionExtremes.minY[chunkIndex], positionExtremes.maxY[chunkIndex], p.y);
-      outSplat[OFFSET.Z] = lerp(positionExtremes.minZ[chunkIndex], positionExtremes.maxZ[chunkIndex], p.z);
-
-      outSplat[OFFSET.ROTATION0] = r.x;
-      outSplat[OFFSET.ROTATION1] = r.y;
-      outSplat[OFFSET.ROTATION2] = r.z;
-      outSplat[OFFSET.ROTATION3] = r.w;
-
-      outSplat[OFFSET.SCALE0] = Math.exp(lerp(scaleExtremes.minScaleX[chunkIndex], scaleExtremes.maxScaleX[chunkIndex], s.x));
-      outSplat[OFFSET.SCALE1] = Math.exp(lerp(scaleExtremes.minScaleY[chunkIndex], scaleExtremes.maxScaleY[chunkIndex], s.y));
-      outSplat[OFFSET.SCALE2] = Math.exp(lerp(scaleExtremes.minScaleZ[chunkIndex], scaleExtremes.maxScaleZ[chunkIndex], s.z));
-
-      if (colorExtremes.minR && colorExtremes.maxR) {
-        outSplat[OFFSET.FDC0] = clamp(Math.round(lerp(colorExtremes.minR[chunkIndex], colorExtremes.maxR[chunkIndex], c.x) * 255), 0, 255);
-      } else {
-        outSplat[OFFSET.FDC0] = clamp(Math.floor(c.x * 255), 0, 255);
-      }
-      if (colorExtremes.minG && colorExtremes.maxG) {
-        outSplat[OFFSET.FDC1] = clamp(Math.round(lerp(colorExtremes.minG[chunkIndex], colorExtremes.maxG[chunkIndex], c.y) * 255), 0, 255);
-      } else {
-        outSplat[OFFSET.FDC1] = clamp(Math.floor(c.y * 255), 0, 255);
-      }
-      if (colorExtremes.minB && colorExtremes.maxB) {
-        outSplat[OFFSET.FDC2] = clamp(Math.round(lerp(colorExtremes.minB[chunkIndex], colorExtremes.maxB[chunkIndex], c.z) * 255), 0, 255);
-      } else {
-        outSplat[OFFSET.FDC2] = clamp(Math.floor(c.z * 255), 0, 255);
-      }
-      outSplat[OFFSET.OPACITY] = clamp(Math.floor(c.w * 255), 0, 255);
-
-      return outSplat;
-    };
-
-  }();
-
-  static decompressSphericalHarmonics = function() {
-
-    const shCoeffMap = [0, 3, 8, 15];
-
-    const shIndexMap = [
-      0, 1, 2, 9, 10, 11, 12, 13, 24, 25, 26, 27, 28, 29, 30,
-      3, 4, 5, 14, 15, 16, 17, 18, 31, 32, 33, 34, 35, 36, 37,
-      6, 7, 8, 19, 20, 21, 22, 23, 38, 39, 40, 41, 42, 43, 44
-    ];
-
-    return function(index, shArray, outSphericalHarmonicsDegree, readSphericalHarmonicsDegree, outSplat) {
-      outSplat = outSplat || UncompressedSplatArray.createSplat();
-      let outSHCoeff = shCoeffMap[outSphericalHarmonicsDegree];
-      let readSHCoeff = shCoeffMap[readSphericalHarmonicsDegree];
-      for (let j = 0; j < 3; ++j) {
-        for (let k = 0; k < 15; ++k) {
-          const outIndex = shIndexMap[j * 15 + k];
-          if (k < outSHCoeff && k < readSHCoeff) {
-            outSplat[UncompressedSplatArray.OFFSET.FRC0 + outIndex] = (shArray[j * readSHCoeff + k][index] * (8 / 255) - 4);
-          }
+            const outBase = i * outBytesPerSplat + splatBufferDataOffsetBytes;
+            SplatBuffer.writeSplatDataToSectionBuffer(newSplat, splatBuffer.bufferData, outBase, 0, outSphericalHarmonicsDegree);
         }
-      }
 
-      return outSplat;
-    };
-
-  }();
-
-  static parseToUncompressedSplatBufferSection(chunkElement, vertexElement, fromIndex, toIndex, chunkSplatIndexOffset,
-                                               vertexDataBuffer, outBuffer, outOffset, propertyFilter = null) {
-
-    PlayCanvasCompressedPlyParser.readElementData(vertexElement, vertexDataBuffer, 0, fromIndex, toIndex, propertyFilter);
-
-    const outBytesPerSplat = SplatBuffer.CompressionLevels[0].SphericalHarmonicsDegrees[0].BytesPerSplat;
-
-    const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
-      PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
-
-    const tempSplat = UncompressedSplatArray.createSplat();
-
-    for (let i = fromIndex; i <= toIndex; ++i) {
-      PlayCanvasCompressedPlyParser.decompressBaseSplat(i, chunkSplatIndexOffset, position, positionExtremes,
-                                                        scale, scaleExtremes, rotation, colorExtremes, color, tempSplat);
-      const outBase = i * outBytesPerSplat + outOffset;
-      SplatBuffer.writeSplatDataToSectionBuffer(tempSplat, outBuffer, outBase, 0, 0);
+        return splatBuffer;
     }
-  }
-
-  static parseToUncompressedSplatArraySection(chunkElement, vertexElement, fromIndex, toIndex, chunkSplatIndexOffset,
-                                              vertexDataBuffer, splatArray, propertyFilter = null) {
-
-    PlayCanvasCompressedPlyParser.readElementData(vertexElement, vertexDataBuffer, 0, fromIndex, toIndex, propertyFilter);
-
-    const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
-      PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
-
-    for (let i = fromIndex; i <= toIndex; ++i) {
-      const tempSplat = UncompressedSplatArray.createSplat();
-      PlayCanvasCompressedPlyParser.decompressBaseSplat(i, chunkSplatIndexOffset, position, positionExtremes,
-                                                        scale, scaleExtremes, rotation, colorExtremes, color, tempSplat);
-      splatArray.addSplat(tempSplat);
-    }
-  }
-
-  static parseSphericalHarmonicsToUncompressedSplatArraySection(chunkElement, shElement, fromIndex, toIndex,
-    vertexDataBuffer, vertexReadOffset, outSphericalHarmonicsDegree, readSphericalHarmonicsDegree, splatArray, propertyFilter = null) {
-
-    PlayCanvasCompressedPlyParser.readElementData(shElement, vertexDataBuffer, vertexReadOffset, fromIndex, toIndex, propertyFilter);
-
-    const { sh } = PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, undefined, shElement);
-    const shArrays = Object.values(sh);
-
-    for (let i = fromIndex; i <= toIndex; ++i) {
-      PlayCanvasCompressedPlyParser.decompressSphericalHarmonics(
-        i, shArrays, outSphericalHarmonicsDegree, readSphericalHarmonicsDegree, splatArray.splats[i]
-      );
-    }
-  }
-
-  static parseToUncompressedSplatArray(plyBuffer, outSphericalHarmonicsDegree) {
-    const { chunkElement, vertexElement, shElement, sphericalHarmonicsDegree } = PlayCanvasCompressedPlyParser.readPly(plyBuffer);
-
-    outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, sphericalHarmonicsDegree);
-
-    const splatArray = new UncompressedSplatArray(outSphericalHarmonicsDegree);
-
-    const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
-      PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
-
-    let shArrays;
-    if (outSphericalHarmonicsDegree > 0) {
-      const { sh } = PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, undefined, shElement);
-      shArrays = Object.values(sh);
-    }
-
-    for (let i = 0; i < vertexElement.count; ++i) {
-
-      splatArray.addDefaultSplat();
-      const newSplat = splatArray.getSplat(splatArray.splatCount - 1);
-
-      PlayCanvasCompressedPlyParser.decompressBaseSplat(i, 0, position, positionExtremes, scale,
-                                                        scaleExtremes, rotation, colorExtremes, color, newSplat);
-
-      if (outSphericalHarmonicsDegree > 0) {
-        PlayCanvasCompressedPlyParser.decompressSphericalHarmonics(
-          i, shArrays, outSphericalHarmonicsDegree, sphericalHarmonicsDegree, newSplat
-        );
-      }
-    }
-
-    return splatArray;
-  }
-
-  static parseToUncompressedSplatBuffer(plyBuffer, outSphericalHarmonicsDegree) {
-    const { chunkElement, vertexElement, shElement, sphericalHarmonicsDegree } = PlayCanvasCompressedPlyParser.readPly(plyBuffer);
-
-    outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, sphericalHarmonicsDegree);
-
-    const {
-      splatBuffer,
-      splatBufferDataOffsetBytes
-    } = SplatBuffer.preallocateUncompressed(vertexElement.count, outSphericalHarmonicsDegree);
-
-    const { positionExtremes, scaleExtremes, colorExtremes, position, rotation, scale, color } =
-    PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, vertexElement);
-
-    let shArrays;
-    if (outSphericalHarmonicsDegree > 0) {
-      const { sh } = PlayCanvasCompressedPlyParser.getElementStorageArrays(chunkElement, undefined, shElement);
-      shArrays = Object.values(sh);
-    }
-
-    const outBytesPerSplat = SplatBuffer.CompressionLevels[0].SphericalHarmonicsDegrees[outSphericalHarmonicsDegree].BytesPerSplat;
-
-    const newSplat = UncompressedSplatArray.createSplat(outSphericalHarmonicsDegree);
-
-    for (let i = 0; i < vertexElement.count; ++i) {
-      PlayCanvasCompressedPlyParser.decompressBaseSplat(
-        i, 0, position, positionExtremes, scale, scaleExtremes, rotation, colorExtremes, color, newSplat
-      );
-      if (outSphericalHarmonicsDegree > 0) {
-        PlayCanvasCompressedPlyParser.decompressSphericalHarmonics(
-          i, shArrays, outSphericalHarmonicsDegree, sphericalHarmonicsDegree, newSplat
-        );
-      }
-
-      const outBase = i * outBytesPerSplat + splatBufferDataOffsetBytes;
-      SplatBuffer.writeSplatDataToSectionBuffer(newSplat, splatBuffer.bufferData, outBase, 0, outSphericalHarmonicsDegree);
-    }
-
-    return splatBuffer;
-  }
 
 }
 
@@ -2447,8 +2455,8 @@ const PlyFormat = {
 };
 
 const [
-        FieldSizeIdDouble, FieldSizeIdInt, FieldSizeIdUInt, FieldSizeIdFloat, FieldSizeIdShort, FieldSizeIdUShort, FieldSizeIdUChar
-      ] = [0, 1, 2, 3, 4, 5, 6];
+    FieldSizeIdDouble, FieldSizeIdInt, FieldSizeIdUInt, FieldSizeIdFloat, FieldSizeIdShort, FieldSizeIdUShort, FieldSizeIdUChar
+] = [0, 1, 2, 3, 4, 5, 6];
 
 const FieldSizeStringMap = {
     'double': FieldSizeIdDouble,
@@ -2749,13 +2757,13 @@ class PlyParserUtils {
 }
 
 const BaseFieldNamesToRead = ['scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3', 'x', 'y', 'z',
-                              'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity', 'red', 'green', 'blue', 'f_rest_0'];
+    'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity', 'red', 'green', 'blue', 'f_rest_0'];
 
 const BaseFieldsToReadIndexes = BaseFieldNamesToRead.map((e, i) => i);
 
 const [
-        SCALE_0, SCALE_1, SCALE_2, ROT_0, ROT_1, ROT_2, ROT_3, X, Y, Z, F_DC_0, F_DC_1, F_DC_2, OPACITY, RED$1, GREEN$1, BLUE$1, F_REST_0
-      ] = BaseFieldsToReadIndexes;
+    SCALE_0, SCALE_1, SCALE_2, ROT_0, ROT_1, ROT_2, ROT_3, X, Y, Z, F_DC_0, F_DC_1, F_DC_2, OPACITY, RED$1, GREEN$1, BLUE$1, F_REST_0
+] = BaseFieldsToReadIndexes;
 
 class INRIAV1PlyParser {
 
@@ -2810,24 +2818,24 @@ class INRIAV1PlyParser {
     }
 
     static parseToUncompressedSplatBufferSection(header, fromSplat, toSplat, splatData, splatDataOffset,
-                                                 toBuffer, toOffset, outSphericalHarmonicsDegree = 0) {
+        toBuffer, toOffset, outSphericalHarmonicsDegree = 0) {
         outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, header.sphericalHarmonicsDegree);
         const outBytesPerSplat = SplatBuffer.CompressionLevels[0].SphericalHarmonicsDegrees[outSphericalHarmonicsDegree].BytesPerSplat;
 
         for (let i = fromSplat; i <= toSplat; i++) {
             const parsedSplat = INRIAV1PlyParser.parseToUncompressedSplat(splatData, i, header,
-                                                                          splatDataOffset, outSphericalHarmonicsDegree);
+                splatDataOffset, outSphericalHarmonicsDegree);
             const outBase = i * outBytesPerSplat + toOffset;
             SplatBuffer.writeSplatDataToSectionBuffer(parsedSplat, toBuffer, outBase, 0, outSphericalHarmonicsDegree);
         }
     }
 
     static parseToUncompressedSplatArraySection(header, fromSplat, toSplat, splatData, splatDataOffset,
-                                         splatArray, outSphericalHarmonicsDegree = 0) {
+        splatArray, outSphericalHarmonicsDegree = 0) {
         outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, header.sphericalHarmonicsDegree);
         for (let i = fromSplat; i <= toSplat; i++) {
             const parsedSplat = INRIAV1PlyParser.parseToUncompressedSplat(splatData, i, header,
-                                                                          splatDataOffset, outSphericalHarmonicsDegree);
+                splatDataOffset, outSphericalHarmonicsDegree);
             splatArray.addSplat(parsedSplat);
         }
     }
@@ -2838,7 +2846,7 @@ class INRIAV1PlyParser {
             const splatArray = new UncompressedSplatArray(outSphericalHarmonicsDegree);
             for (let row = 0; row < splatCount; row++) {
                 const newSplat = INRIAV1PlyParser.parseToUncompressedSplat(sectionSplatData, row, sectionHeader,
-                                                                           0, outSphericalHarmonicsDegree);
+                    0, outSphericalHarmonicsDegree);
                 splatArray.addSplat(newSplat);
             }
             return splatArray;
@@ -2846,7 +2854,7 @@ class INRIAV1PlyParser {
             const {
                 splatBuffer,
                 splatBufferDataOffsetBytes
-              } = SplatBuffer.preallocateUncompressed(splatCount, outSphericalHarmonicsDegree);
+            } = SplatBuffer.preallocateUncompressed(splatCount, outSphericalHarmonicsDegree);
             INRIAV1PlyParser.parseToUncompressedSplatBufferSection(
                 sectionHeader, 0, splatCount - 1, sectionSplatData, 0,
                 splatBuffer.bufferData, splatBufferDataOffsetBytes, outSphericalHarmonicsDegree
@@ -2855,7 +2863,7 @@ class INRIAV1PlyParser {
         }
     }
 
-    static parseToUncompressedSplat = function() {
+    static parseToUncompressedSplat = function () {
 
         let rawSplat = [];
         const tempRotation = new THREE.Quaternion();
@@ -2884,7 +2892,7 @@ class INRIAV1PlyParser {
             OFFSET_FRC[i] = UncompressedSplatArray.OFFSET.FRC0 + i;
         }
 
-        return function(splatData, row, header, splatDataOffset = 0, outSphericalHarmonicsDegree = 0) {
+        return function (splatData, row, header, splatDataOffset = 0, outSphericalHarmonicsDegree = 0) {
             outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, header.sphericalHarmonicsDegree);
             INRIAV1PlyParser.readSplat(splatData, header, row, splatDataOffset, rawSplat);
             const newSplat = UncompressedSplatArray.createSplat(outSphericalHarmonicsDegree);
@@ -2986,33 +2994,33 @@ const CodeBookEntryNamesToRead = [
 const CodeBookEntriesToReadIndexes = CodeBookEntryNamesToRead.map((e, i) => i);
 
 const [
-        CB_FEATURES_DC, CB_FEATURES_REST_0, CB_FEATURES_REST_3, CB_OPACITY, CB_SCALING, CB_ROTATION_RE, CB_ROTATION_IM
-      ] = [0, 1, 4, 16, 17, 18, 19];
+    CB_FEATURES_DC, CB_FEATURES_REST_0, CB_FEATURES_REST_3, CB_OPACITY, CB_SCALING, CB_ROTATION_RE, CB_ROTATION_IM
+] = [0, 1, 4, 16, 17, 18, 19];
 
 const FieldNamesToRead = ['scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3',
-                          'x', 'y', 'z', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity', 'red', 'green', 'blue',
-                          'f_rest_0', 'f_rest_1', 'f_rest_2', 'f_rest_3', 'f_rest_4', 'f_rest_5', 'f_rest_6', 'f_rest_7', 'f_rest_8',
-                          'f_rest_9', 'f_rest_10', 'f_rest_11', 'f_rest_12', 'f_rest_13', 'f_rest_14', 'f_rest_15', 'f_rest_16',
-                          'f_rest_17', 'f_rest_18', 'f_rest_19', 'f_rest_20', 'f_rest_21', 'f_rest_22', 'f_rest_23', 'f_rest_24',
-                          'f_rest_25', 'f_rest_26', 'f_rest_27', 'f_rest_28', 'f_rest_29', 'f_rest_30', 'f_rest_31', 'f_rest_32',
-                          'f_rest_33', 'f_rest_34', 'f_rest_35', 'f_rest_36', 'f_rest_37', 'f_rest_38', 'f_rest_39', 'f_rest_40',
-                          'f_rest_41', 'f_rest_42', 'f_rest_43', 'f_rest_44', 'f_rest_45'
-                         ];
+    'x', 'y', 'z', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity', 'red', 'green', 'blue',
+    'f_rest_0', 'f_rest_1', 'f_rest_2', 'f_rest_3', 'f_rest_4', 'f_rest_5', 'f_rest_6', 'f_rest_7', 'f_rest_8',
+    'f_rest_9', 'f_rest_10', 'f_rest_11', 'f_rest_12', 'f_rest_13', 'f_rest_14', 'f_rest_15', 'f_rest_16',
+    'f_rest_17', 'f_rest_18', 'f_rest_19', 'f_rest_20', 'f_rest_21', 'f_rest_22', 'f_rest_23', 'f_rest_24',
+    'f_rest_25', 'f_rest_26', 'f_rest_27', 'f_rest_28', 'f_rest_29', 'f_rest_30', 'f_rest_31', 'f_rest_32',
+    'f_rest_33', 'f_rest_34', 'f_rest_35', 'f_rest_36', 'f_rest_37', 'f_rest_38', 'f_rest_39', 'f_rest_40',
+    'f_rest_41', 'f_rest_42', 'f_rest_43', 'f_rest_44', 'f_rest_45'
+];
 const FieldsToReadIndexes = FieldNamesToRead.map((e, i) => i);
 
 const [
-        PLY_SCALE_0, PLY_SCALE_1, PLY_SCALE_2, PLY_ROT_0, PLY_ROT_1, PLY_ROT_2, PLY_ROT_3, PLY_X, PLY_Y, PLY_Z,
-        PLY_F_DC_0, PLY_F_DC_1, PLY_F_DC_2, PLY_OPACITY,
-      ] = FieldsToReadIndexes;
+    PLY_SCALE_0, PLY_SCALE_1, PLY_SCALE_2, PLY_ROT_0, PLY_ROT_1, PLY_ROT_2, PLY_ROT_3, PLY_X, PLY_Y, PLY_Z,
+    PLY_F_DC_0, PLY_F_DC_1, PLY_F_DC_2, PLY_OPACITY,
+] = FieldsToReadIndexes;
 
 const PLY_RED = PLY_F_DC_0;
 const PLY_GREEN = PLY_F_DC_1;
 const PLY_BLUE = PLY_F_DC_2;
 
-const fromHalfFloat = (hf) =>{
+const fromHalfFloat = (hf) => {
     const t = (31744 & hf) >> 10;
     const a = 1023 & hf;
-    return (hf >> 15 ? -1 : 1)*(t ? t === 31 ? a ? NaN : 1/0 : Math.pow(2, t - 15) *( 1 + a / 1024) : a / 1024*6103515625e-14);
+    return (hf >> 15 ? -1 : 1) * (t ? t === 31 ? a ? NaN : 1 / 0 : Math.pow(2, t - 15) * (1 + a / 1024) : a / 1024 * 6103515625e-14);
 };
 
 class INRIAV2PlyParser {
@@ -3119,7 +3127,7 @@ class INRIAV2PlyParser {
             const codeBookPage = codeBook[page];
             const SH_C0 = 0.28209479177387814;
             for (let i = 0; i < codeBookPage.length; i++) {
-               const baseValue = fromHalfFloat(codeBookPage[i]);
+                const baseValue = fromHalfFloat(codeBookPage[i]);
                 if (page === CB_OPACITY) {
                     codeBookPage[i] = Math.round((1 / (1 + Math.exp(-baseValue))) * 255);
                 } else if (page === CB_FEATURES_DC) {
@@ -3139,13 +3147,13 @@ class INRIAV2PlyParser {
         const splatArray = new UncompressedSplatArray(outSphericalHarmonicsDegree);
         for (let row = 0; row < splatCount; row++) {
             const newSplat = INRIAV2PlyParser.parseToUncompressedSplat(sectionSplatData, row, sectionHeader, codeBook,
-                                                                       0, outSphericalHarmonicsDegree);
+                0, outSphericalHarmonicsDegree);
             splatArray.addSplat(newSplat);
         }
         return splatArray;
     }
 
-    static parseToUncompressedSplat = function() {
+    static parseToUncompressedSplat = function () {
 
         let rawSplat = [];
         const tempRotation = new THREE.Quaternion();
@@ -3174,7 +3182,7 @@ class INRIAV2PlyParser {
             OFFSET_FRC[i] = UncompressedSplatArray.OFFSET.FRC0 + i;
         }
 
-        return function(splatData, row, header, codeBook, splatDataOffset = 0, outSphericalHarmonicsDegree = 0) {
+        return function (splatData, row, header, codeBook, splatDataOffset = 0, outSphericalHarmonicsDegree = 0) {
             outSphericalHarmonicsDegree = Math.min(outSphericalHarmonicsDegree, header.sphericalHarmonicsDegree);
             INRIAV2PlyParser.readSplat(splatData, header, row, splatDataOffset, rawSplat);
             const newSplat = UncompressedSplatArray.createSplat(outSphericalHarmonicsDegree);
@@ -3267,7 +3275,7 @@ class INRIAV2PlyParser {
                 const splatCount = sectionHeader.vertexCount;
                 const vertexData = INRIAV2PlyParser.findVertexData(plyBuffer, header, s);
                 const splatArray = INRIAV2PlyParser.decodeSectionSplatData(vertexData, splatCount, sectionHeader,
-                                                               codeBook, outSphericalHarmonicsDegree);
+                    codeBook, outSphericalHarmonicsDegree);
                 splatArrays.push(splatArray);
             }
         }
@@ -3303,7 +3311,7 @@ class PlyParser {
         } else if (plyFormat === PlyFormat.INRIAV1) {
             return INRIAV1PlyParser.parseToUncompressedSplatBuffer(plyBuffer, outSphericalHarmonicsDegree);
         } else if (plyFormat === PlyFormat.INRIAV2) {
-             // TODO: Implement!
+            // TODO: Implement!
             throw new Error('parseToUncompressedSplatBuffer() is not implemented for INRIA V2 PLY files');
         }
     }
@@ -3352,7 +3360,7 @@ class SplatPartitioner {
     }
 
     static getStandardPartitioner(partitionSize = 0, sceneCenter = new THREE.Vector3(),
-                                  blockSize = SplatBuffer.BucketBlockSize, bucketSize = SplatBuffer.BucketSize) {
+        blockSize = SplatBuffer.BucketBlockSize, bucketSize = SplatBuffer.BucketSize) {
 
         const partitionGenerator = (splatArray) => {
 
@@ -3386,7 +3394,7 @@ class SplatPartitioner {
             partitionSize = Math.min(splatArray.splatCount, partitionSize);
             const patitionCount = Math.ceil(splatArray.splatCount / partitionSize);
             let currentStartSplat = 0;
-            for (let i = 0; i < patitionCount; i ++) {
+            for (let i = 0; i < patitionCount; i++) {
                 let startSplat = currentStartSplat;
                 sectionFilters.push((splatIndex) => {
                     return splatIndex >= startSplat && splatIndex < startSplat + partitionSize;
@@ -3422,16 +3430,16 @@ class SplatBufferGenerator {
     generateFromUncompressedSplatArray(splatArray) {
         const partitionResults = this.splatPartitioner.partitionUncompressedSplatArray(splatArray);
         return SplatBuffer.generateFromUncompressedSplatArrays(partitionResults.splatArrays,
-                                                               this.alphaRemovalThreshold, this.compressionLevel,
-                                                               this.sceneCenter, this.blockSize, this.bucketSize,
-                                                               partitionResults.parameters);
+            this.alphaRemovalThreshold, this.compressionLevel,
+            this.sceneCenter, this.blockSize, this.bucketSize,
+            partitionResults.parameters);
     }
 
     static getStandardGenerator(alphaRemovalThreshold = 1, compressionLevel = 1, sectionSize = 0, sceneCenter = new THREE.Vector3(),
-                                blockSize = SplatBuffer.BucketBlockSize, bucketSize = SplatBuffer.BucketSize) {
+        blockSize = SplatBuffer.BucketBlockSize, bucketSize = SplatBuffer.BucketSize) {
         const splatPartitioner = SplatPartitioner.getStandardPartitioner(sectionSize, sceneCenter, blockSize, bucketSize);
         return new SplatBufferGenerator(splatPartitioner, alphaRemovalThreshold, compressionLevel,
-                                        sectionSize, sceneCenter, blockSize, bucketSize);
+            sectionSize, sceneCenter, blockSize, bucketSize);
     }
 }
 
@@ -3475,8 +3483,8 @@ function storeChunksInBuffer(chunks, buffer) {
 function finalize$1(splatData, optimizeSplatData, minimumAlpha, compressionLevel, sectionSize, sceneCenter, blockSize, bucketSize) {
     if (optimizeSplatData) {
         const splatBufferGenerator = SplatBufferGenerator.getStandardGenerator(minimumAlpha, compressionLevel,
-                                                                               sectionSize, sceneCenter,
-                                                                               blockSize, bucketSize);
+            sectionSize, sceneCenter,
+            blockSize, bucketSize);
         return splatBufferGenerator.generateFromUncompressedSplatArray(splatData);
     } else {
         return SplatBuffer.generateFromUncompressedSplatArrays([splatData], minimumAlpha, 0, new THREE.Vector3());
@@ -3486,8 +3494,8 @@ function finalize$1(splatData, optimizeSplatData, minimumAlpha, compressionLevel
 class PlyLoader {
 
     static loadFromURL(fileName, onProgress, progressiveLoadToSplatBuffer, onProgressiveLoadSectionProgress,
-                       minimumAlpha, compressionLevel, optimizeSplatData = true, outSphericalHarmonicsDegree = 0,
-                       headers, sectionSize, sceneCenter, blockSize, bucketSize) {
+        minimumAlpha, compressionLevel, optimizeSplatData = true, outSphericalHarmonicsDegree = 0,
+        headers, sectionSize, sceneCenter, blockSize, bucketSize) {
 
         let internalLoadType;
         if (!progressiveLoadToSplatBuffer && !optimizeSplatData) {
@@ -3567,7 +3575,7 @@ class PlyLoader {
                             }
                             maxSplatCount = header.vertexElement.count;
                             endOfBaseSplatDataBytes = header.headerSizeBytes + header.bytesPerSplat * maxSplatCount +
-                                                      header.chunkElement.storageSizeBytes;
+                                header.chunkElement.storageSizeBytes;
                         } else {
                             if (internalLoadType === InternalLoadType.ProgressiveToSplatBuffer) {
                                 throw new DirectLoadError(
@@ -3606,7 +3614,7 @@ class PlyLoader {
                     compressedPlyHeaderChunksBuffer = storeChunksInBuffer(chunks, compressedPlyHeaderChunksBuffer);
                     if (compressedPlyHeaderChunksBuffer.byteLength >= sizeRequiredForHeaderAndChunks) {
                         PlayCanvasCompressedPlyParser.readElementData(header.chunkElement, compressedPlyHeaderChunksBuffer,
-                                                                      header.headerSizeBytes);
+                            header.headerSizeBytes);
                         numBytesStreamed = sizeRequiredForHeaderAndChunks;
                         numBytesParsed = sizeRequiredForHeaderAndChunks;
                         readyToLoadSplatData = true;
@@ -3623,7 +3631,7 @@ class PlyLoader {
                         loadComplete) {
                         const bytesPerSplat = baseSplatDataLoaded ? header.sphericalHarmonicsPerSplat : header.bytesPerSplat;
                         const endOfBytesToProcess = baseSplatDataLoaded ? numBytesDownloaded :
-                                                    Math.min(endOfBaseSplatDataBytes, numBytesDownloaded);
+                            Math.min(endOfBaseSplatDataBytes, numBytesDownloaded);
                         const numBytesToProcess = endOfBytesToProcess - numBytesParsed;
                         const addedSplatCount = Math.floor(numBytesToProcess / bytesPerSplat);
                         const numBytesToParse = addedSplatCount * bytesPerSplat;
@@ -3741,14 +3749,14 @@ class PlyLoader {
                     const chunkDatas = chunks.map((chunk) => chunk.data);
                     return new Blob(chunkDatas).arrayBuffer().then((plyFileData) => {
                         return PlyLoader.loadFromFileData(plyFileData, minimumAlpha, compressionLevel, optimizeSplatData,
-                                                          outSphericalHarmonicsDegree, sectionSize, sceneCenter, blockSize, bucketSize);
+                            outSphericalHarmonicsDegree, sectionSize, sceneCenter, blockSize, bucketSize);
                     });
                 } else if (internalLoadType === InternalLoadType.ProgressiveToSplatBuffer) {
                     return splatData;
                 } else {
                     return delayedExecute(() => {
                         return finalize$1(splatData, optimizeSplatData, minimumAlpha, compressionLevel,
-                                        sectionSize, sceneCenter, blockSize, bucketSize);
+                            sectionSize, sceneCenter, blockSize, bucketSize);
                     });
                 }
             });
@@ -3756,15 +3764,15 @@ class PlyLoader {
     }
 
     static loadFromFileData(plyFileData, minimumAlpha, compressionLevel, optimizeSplatData, outSphericalHarmonicsDegree = 0,
-                            sectionSize, sceneCenter, blockSize, bucketSize) {
+        sectionSize, sceneCenter, blockSize, bucketSize) {
         if (optimizeSplatData) {
             return delayedExecute(() => {
                 return PlyParser.parseToUncompressedSplatArray(plyFileData, outSphericalHarmonicsDegree);
             })
-            .then((splatArray) => {
-                return finalize$1(splatArray, optimizeSplatData, minimumAlpha, compressionLevel,
-                                sectionSize, sceneCenter, blockSize, bucketSize);
-            });
+                .then((splatArray) => {
+                    return finalize$1(splatArray, optimizeSplatData, minimumAlpha, compressionLevel,
+                        sectionSize, sceneCenter, blockSize, bucketSize);
+                });
         } else {
             return delayedExecute(() => {
                 return PlyParser.parseToUncompressedSplatBuffer(plyFileData, outSphericalHarmonicsDegree);
@@ -3773,7 +3781,7 @@ class PlyLoader {
     }
 }
 
-const createStream = (data)=> {
+const createStream = (data) => {
     return new ReadableStream({
         async start(controller) {
             controller.enqueue(data);
@@ -3853,7 +3861,7 @@ function dimForDegree(degree) {
     }
 }
 
-const unpackedSplatToUncompressedSplat = function() {
+const unpackedSplatToUncompressedSplat = function () {
 
     let rawSplat = [];
     const tempRotation = new THREE.Quaternion();
@@ -3890,8 +3898,8 @@ const unpackedSplatToUncompressedSplat = function() {
         6, 7, 8, 19, 20, 21, 22, 23, 38, 39, 40, 41, 42, 43, 44
     ];
 
-    return function(unpackedSplat, unpackedSphericalHarmonicsDegree, outSphericalHarmonicsDegree) {
-                    outSphericalHarmonicsDegree = Math.min(unpackedSphericalHarmonicsDegree, outSphericalHarmonicsDegree);
+    return function (unpackedSplat, unpackedSphericalHarmonicsDegree, outSphericalHarmonicsDegree) {
+        outSphericalHarmonicsDegree = Math.min(unpackedSphericalHarmonicsDegree, outSphericalHarmonicsDegree);
 
         const newSplat = UncompressedSplatArray.createSplat(outSphericalHarmonicsDegree);
         if (unpackedSplat.scale[0] !== undefined) {
@@ -3988,7 +3996,7 @@ function unpackGaussians(packed, outSphericalHarmonicsDegree, directToSplatBuffe
 
     let halfData;
     if (usesFloat16) {
-       halfData = new Uint16Array(packed.positions.buffer, packed.positions.byteOffset, numPoints * 3);
+        halfData = new Uint16Array(packed.positions.buffer, packed.positions.byteOffset, numPoints * 3);
     }
     const fullPrecisionPositionScale = 1.0 / (1 << packed.fractionalBits);
     const shCoeffPerChannelPerSplat = dimForDegree(packed.shDegree);
@@ -4163,17 +4171,17 @@ async function loadSpzPacked(compressedData) {
 class SpzLoader {
 
     static loadFromURL(fileName, onProgress, minimumAlpha, compressionLevel, optimizeSplatData = true,
-                       outSphericalHarmonicsDegree = 0, headers, sectionSize, sceneCenter, blockSize, bucketSize) {
+        outSphericalHarmonicsDegree = 0, headers, sectionSize, sceneCenter, blockSize, bucketSize) {
         if (onProgress) onProgress(0, '0%', LoaderStatus.Downloading);
         return fetchWithProgress(fileName, onProgress, true, headers).then((fileData) => {
             if (onProgress) onProgress(0, '0%', LoaderStatus.Processing);
             return SpzLoader.loadFromFileData(fileData, minimumAlpha, compressionLevel, optimizeSplatData,
-                                              outSphericalHarmonicsDegree, sectionSize, sceneCenter, blockSize, bucketSize);
+                outSphericalHarmonicsDegree, sectionSize, sceneCenter, blockSize, bucketSize);
         });
     }
 
     static async loadFromFileData(spzFileData, minimumAlpha, compressionLevel, optimizeSplatData,
-                                  outSphericalHarmonicsDegree = 0, sectionSize, sceneCenter, blockSize, bucketSize) {
+        outSphericalHarmonicsDegree = 0, sectionSize, sceneCenter, blockSize, bucketSize) {
         await delayedExecute();
         const packed = await loadSpzPacked(spzFileData);
         outSphericalHarmonicsDegree = Math.min(packed.shDegree, outSphericalHarmonicsDegree);
@@ -4183,14 +4191,14 @@ class SpzLoader {
         if (optimizeSplatData) {
             unpackGaussians(packed, outSphericalHarmonicsDegree, false, splatArray, 0);
             const splatBufferGenerator = SplatBufferGenerator.getStandardGenerator(minimumAlpha, compressionLevel,
-                                                                                   sectionSize, sceneCenter,
-                                                                                   blockSize, bucketSize);
+                sectionSize, sceneCenter,
+                blockSize, bucketSize);
             return splatBufferGenerator.generateFromUncompressedSplatArray(splatArray);
         } else {
             const {
                 splatBuffer,
                 splatBufferDataOffsetBytes
-              } = SplatBuffer.preallocateUncompressed(packed.numPoints, outSphericalHarmonicsDegree);
+            } = SplatBuffer.preallocateUncompressed(packed.numPoints, outSphericalHarmonicsDegree);
             unpackGaussians(packed, outSphericalHarmonicsDegree, true, splatBuffer.bufferData, splatBufferDataOffsetBytes);
             return splatBuffer;
         }
@@ -4219,10 +4227,10 @@ class SplatParser {
             const inScale = new Float32Array(fromBuffer, inBase + SplatParser.CenterSizeBytes, 3);
             const inColor = new Uint8Array(fromBuffer, inBase + SplatParser.CenterSizeBytes + SplatParser.ScaleSizeBytes, 4);
             const inRotation = new Uint8Array(fromBuffer, inBase + SplatParser.CenterSizeBytes + SplatParser.ScaleSizeBytes +
-                                              SplatParser.RotationSizeBytes, 4);
+                SplatParser.RotationSizeBytes, 4);
 
             const quat = new THREE.Quaternion((inRotation[1] - 128) / 128, (inRotation[2] - 128) / 128,
-                                              (inRotation[3] - 128) / 128, (inRotation[0] - 128) / 128);
+                (inRotation[3] - 128) / 128, (inRotation[0] - 128) / 128);
             quat.normalize();
 
             const outBase = i * outBytesPerSplat + toOffset;
@@ -4259,14 +4267,14 @@ class SplatParser {
             const inScale = new Float32Array(fromBuffer, inBase + SplatParser.CenterSizeBytes, 3);
             const inColor = new Uint8Array(fromBuffer, inBase + SplatParser.CenterSizeBytes + SplatParser.ScaleSizeBytes, 4);
             const inRotation = new Uint8Array(fromBuffer, inBase + SplatParser.CenterSizeBytes + SplatParser.ScaleSizeBytes +
-                                              SplatParser.RotationSizeBytes, 4);
+                SplatParser.RotationSizeBytes, 4);
 
             const quat = new THREE.Quaternion((inRotation[1] - 128) / 128, (inRotation[2] - 128) / 128,
-                                              (inRotation[3] - 128) / 128, (inRotation[0] - 128) / 128);
+                (inRotation[3] - 128) / 128, (inRotation[0] - 128) / 128);
             quat.normalize();
 
             splatArray.addSplatFromComonents(inCenter[0], inCenter[1], inCenter[2], inScale[0], inScale[1], inScale[2],
-                                             quat.w, quat.x, quat.y, quat.z, inColor[0], inColor[1], inColor[2], inColor[3]);
+                quat.w, quat.x, quat.y, quat.z, inColor[0], inColor[1], inColor[2], inColor[3]);
         }
     }
 
@@ -4287,14 +4295,14 @@ class SplatParser {
             const inScale = new Float32Array(inBuffer, inBase + SplatParser.CenterSizeBytes, 3);
             const inColor = new Uint8Array(inBuffer, inBase + SplatParser.CenterSizeBytes + SplatParser.ScaleSizeBytes, 4);
             const inRotation = new Uint8Array(inBuffer, inBase + SplatParser.CenterSizeBytes +
-                                              SplatParser.ScaleSizeBytes + SplatParser.ColorSizeBytes, 4);
+                SplatParser.ScaleSizeBytes + SplatParser.ColorSizeBytes, 4);
 
             const quat = new THREE.Quaternion((inRotation[1] - 128) / 128, (inRotation[2] - 128) / 128,
-                                              (inRotation[3] - 128) / 128, (inRotation[0] - 128) / 128);
+                (inRotation[3] - 128) / 128, (inRotation[0] - 128) / 128);
             quat.normalize();
 
             splatArray.addSplatFromComonents(inCenter[0], inCenter[1], inCenter[2], inScale[0], inScale[1], inScale[2],
-                                             quat.w, quat.x, quat.y, quat.z, inColor[0], inColor[1], inColor[2], inColor[3]);
+                quat.w, quat.x, quat.y, quat.z, inColor[0], inColor[1], inColor[2], inColor[3]);
         }
 
         return splatArray;
@@ -4305,8 +4313,8 @@ class SplatParser {
 function finalize(splatData, optimizeSplatData, minimumAlpha, compressionLevel, sectionSize, sceneCenter, blockSize, bucketSize) {
     if (optimizeSplatData) {
         const splatBufferGenerator = SplatBufferGenerator.getStandardGenerator(minimumAlpha, compressionLevel,
-                                                                               sectionSize, sceneCenter,
-                                                                               blockSize, bucketSize);
+            sectionSize, sceneCenter,
+            blockSize, bucketSize);
         return splatBufferGenerator.generateFromUncompressedSplatArray(splatData);
     } else {
         // TODO: Implement direct-to-SplatBuffer when not optimizing splat data
@@ -4317,10 +4325,10 @@ function finalize(splatData, optimizeSplatData, minimumAlpha, compressionLevel, 
 class SplatLoader {
 
     static loadFromURL(fileName, onProgress, progressiveLoadToSplatBuffer, onProgressiveLoadSectionProgress, minimumAlpha, compressionLevel,
-                       optimizeSplatData = true, headers, sectionSize, sceneCenter, blockSize, bucketSize) {
+        optimizeSplatData = true, headers, sectionSize, sceneCenter, blockSize, bucketSize) {
 
         let internalLoadType = progressiveLoadToSplatBuffer ? InternalLoadType.ProgressiveToSplatBuffer :
-                                                          InternalLoadType.ProgressiveToSplatArray;
+            InternalLoadType.ProgressiveToSplatArray;
         if (optimizeSplatData) internalLoadType = InternalLoadType.ProgressiveToSplatArray;
 
         const splatDataOffsetBytes = SplatBuffer.HeaderSizeBytes + SplatBuffer.SectionHeaderSizeBytes;
@@ -4399,10 +4407,10 @@ class SplatLoader {
 
                     if (internalLoadType === InternalLoadType.ProgressiveToSplatBuffer) {
                         SplatParser.parseToUncompressedSplatBufferSection(splatCount, newSplatCount - 1, directLoadBufferIn, 0,
-                                                                            directLoadBufferOut, splatDataOffsetBytes);
+                            directLoadBufferOut, splatDataOffsetBytes);
                     } else {
                         SplatParser.parseToUncompressedSplatArraySection(splatCount, newSplatCount - 1, directLoadBufferIn, 0,
-                                                                            standardLoadUncompressedSplatArray);
+                            standardLoadUncompressedSplatArray);
                     }
 
                     splatCount = newSplatCount;
@@ -4451,14 +4459,14 @@ class SplatLoader {
                 if (internalLoadType === InternalLoadType.DownloadBeforeProcessing) {
                     return new Blob(chunks).arrayBuffer().then((splatData) => {
                         return SplatLoader.loadFromFileData(splatData, minimumAlpha, compressionLevel, optimizeSplatData,
-                                                            sectionSize, sceneCenter, blockSize, bucketSize);
+                            sectionSize, sceneCenter, blockSize, bucketSize);
                     });
                 } else if (internalLoadType === InternalLoadType.ProgressiveToSplatBuffer) {
                     return splatData;
                 } else {
                     return delayedExecute(() => {
                         return finalize(splatData, optimizeSplatData, minimumAlpha, compressionLevel,
-                                        sectionSize, sceneCenter, blockSize, bucketSize);
+                            sectionSize, sceneCenter, blockSize, bucketSize);
                     });
                 }
             });
@@ -4466,11 +4474,11 @@ class SplatLoader {
     }
 
     static loadFromFileData(splatFileData, minimumAlpha, compressionLevel, optimizeSplatData,
-                            sectionSize, sceneCenter, blockSize, bucketSize) {
+        sectionSize, sceneCenter, blockSize, bucketSize) {
         return delayedExecute(() => {
             const splatArray = SplatParser.parseStandardSplatToUncompressedSplatArray(splatFileData);
             return finalize(splatArray, optimizeSplatData, minimumAlpha, compressionLevel,
-                            sectionSize, sceneCenter, blockSize, bucketSize);
+                sectionSize, sceneCenter, blockSize, bucketSize);
         });
     }
 
@@ -4478,17 +4486,17 @@ class SplatLoader {
 
 class KSplatLoader {
 
-   static checkVersion(buffer) {
+    static checkVersion(buffer) {
         const minVersionMajor = SplatBuffer.CurrentMajorVersion;
         const minVersionMinor = SplatBuffer.CurrentMinorVersion;
         const header = SplatBuffer.parseHeader(buffer);
         if (header.versionMajor === minVersionMajor &&
             header.versionMinor >= minVersionMinor ||
             header.versionMajor > minVersionMajor) {
-           return true;
+            return true;
         } else {
             throw new Error(`KSplat version not supported: v${header.versionMajor}.${header.versionMinor}. ` +
-                            `Minimum required: v${minVersionMajor}.${minVersionMinor}`);
+                `Minimum required: v${minVersionMajor}.${minVersionMinor}`);
         }
     };
 
@@ -4556,14 +4564,14 @@ class KSplatLoader {
                     sectionHeadersLoaded = true;
                     sectionHeadersBuffer = new ArrayBuffer(header.maxSectionCount * SplatBuffer.SectionHeaderSizeBytes);
                     new Uint8Array(sectionHeadersBuffer).set(new Uint8Array(bufferData, SplatBuffer.HeaderSizeBytes,
-                                                                            header.maxSectionCount * SplatBuffer.SectionHeaderSizeBytes));
+                        header.maxSectionCount * SplatBuffer.SectionHeaderSizeBytes));
                     sectionHeaders = SplatBuffer.parseSectionHeaders(header, sectionHeadersBuffer, 0, false);
                     let totalSectionStorageStorageByes = 0;
                     for (let i = 0; i < header.maxSectionCount; i++) {
                         totalSectionStorageStorageByes += sectionHeaders[i].storageSizeBytes;
                     }
                     const totalStorageSizeBytes = SplatBuffer.HeaderSizeBytes + header.maxSectionCount *
-                                                  SplatBuffer.SectionHeaderSizeBytes + totalSectionStorageStorageByes;
+                        SplatBuffer.SectionHeaderSizeBytes + totalSectionStorageStorageByes;
                     if (!directLoadBuffer) {
                         directLoadBuffer = new ArrayBuffer(totalStorageSizeBytes);
                         let offset = 0;
@@ -4615,7 +4623,7 @@ class KSplatLoader {
                         for (let i = 0; i < header.maxSectionCount; i++) {
                             const sectionHeader = sectionHeaders[i];
                             const bucketsDataOffset = sectionBase + sectionHeader.partiallyFilledBucketCount * 4 +
-                                                    sectionHeader.bucketStorageSizeBytes * sectionHeader.bucketCount;
+                                sectionHeader.bucketStorageSizeBytes * sectionHeader.bucketCount;
                             const bytesRequiredToReachSectionSplatData = baseDataOffset + bucketsDataOffset;
                             if (numBytesProgressivelyLoaded >= bytesRequiredToReachSectionSplatData) {
                                 reachedSections++;
@@ -4686,11 +4694,11 @@ class KSplatLoader {
         });
     }
 
-    static downloadFile = function() {
+    static downloadFile = function () {
 
         let downLoadLink;
 
-        return function(splatBuffer, fileName) {
+        return function (splatBuffer, fileName) {
             const blob = new Blob([splatBuffer.bufferData], {
                 type: 'application/octet-stream',
             });
@@ -4755,12 +4763,12 @@ const _startEvent = { type: 'start' };
 const _endEvent = { type: 'end' };
 const _ray = new Ray$1();
 const _plane = new Plane();
-const TILT_LIMIT = Math.cos( 70 * MathUtils.DEG2RAD );
+const TILT_LIMIT = Math.cos(70 * MathUtils.DEG2RAD);
 
 
 class OrbitControls extends EventDispatcher {
 
-    constructor( object, domElement ) {
+    constructor(object, domElement) {
 
         super();
 
@@ -4840,7 +4848,7 @@ class OrbitControls extends EventDispatcher {
         // the target DOM element for key events
         this._domElementKeyEvents = null;
 
-        
+
 
         /**----------------------------------------------- */
         this.isFirstPersonMode = false; // 是否为第一人称模式, 默认为false
@@ -4851,7 +4859,7 @@ class OrbitControls extends EventDispatcher {
         this._pitch = 0;
 
         /**----------------------------------------------- */
-        
+
         // -----------【新增：初始化第一人称朝向】-----------
         if (this.isFirstPersonMode) {
             const euler = new THREE.Euler().setFromQuaternion(this.object.quaternion, 'YXZ');
@@ -4871,58 +4879,58 @@ class OrbitControls extends EventDispatcher {
         //
 
 
-        this.getPolarAngle = function() {
+        this.getPolarAngle = function () {
 
             return spherical.phi;
 
         };
 
-        this.getAzimuthalAngle = function() {
+        this.getAzimuthalAngle = function () {
 
             return spherical.theta;
 
         };
 
-        this.getDistance = function() {
+        this.getDistance = function () {
 
-            return this.object.position.distanceTo( this.target );
+            return this.object.position.distanceTo(this.target);
 
         };
 
-        this.listenToKeyEvents = function( domElement ) {
+        this.listenToKeyEvents = function (domElement) {
 
-            domElement.addEventListener( 'keydown', onKeyDown );
+            domElement.addEventListener('keydown', onKeyDown);
             domElement.addEventListener('keyup', onKeyUp); // 新增
             this._domElementKeyEvents = domElement;
 
         };
 
-        this.stopListenToKeyEvents = function() {
+        this.stopListenToKeyEvents = function () {
 
-            this._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
+            this._domElementKeyEvents.removeEventListener('keydown', onKeyDown);
             this._domElementKeyEvents.removeEventListener('keyup', onKeyUp); // 新增
             this._domElementKeyEvents = null;
 
         };
 
-        this.saveState = function() {
+        this.saveState = function () {
 
-            scope.target0.copy( scope.target );
-            scope.position0.copy( scope.object.position );
+            scope.target0.copy(scope.target);
+            scope.position0.copy(scope.object.position);
             scope.zoom0 = scope.object.zoom;
 
         };
 
-        this.reset = function() {
+        this.reset = function () {
 
-            scope.target.copy( scope.target0 );
-            scope.object.position.copy( scope.position0 );
+            scope.target.copy(scope.target0);
+            scope.object.position.copy(scope.position0);
             scope.object.zoom = scope.zoom0;
             this.clearDampedRotation();
             this.clearDampedPan();
 
             scope.object.updateProjectionMatrix();
-            scope.dispatchEvent( _changeEvent );
+            scope.dispatchEvent(_changeEvent);
 
             scope.update();
 
@@ -4930,22 +4938,22 @@ class OrbitControls extends EventDispatcher {
 
         };
 
-        this.clearDampedRotation = function() {
+        this.clearDampedRotation = function () {
             sphericalDelta.theta = 0.0;
             sphericalDelta.phi = 0.0;
         };
 
-        this.clearDampedPan = function() {
+        this.clearDampedPan = function () {
             panOffset.set(0, 0, 0);
         };
 
         // this method is exposed, but perhaps it would be better if we can make it private...
-        this.update = function() {
+        this.update = function () {
 
             const offset = new Vector3();
 
             // so camera.up is the orbit axis
-            const quat = new Quaternion().setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
+            const quat = new Quaternion().setFromUnitVectors(object.up, new Vector3(0, 1, 0));
             const quatInverse = quat.clone().invert();
 
             const lastPosition = new Vector3();
@@ -4974,26 +4982,26 @@ class OrbitControls extends EventDispatcher {
                 }
                 /**------------------------------------------------------------------ */
 
-                quat.setFromUnitVectors( object.up, new Vector3( 0, 1, 0 ) );
+                quat.setFromUnitVectors(object.up, new Vector3(0, 1, 0));
                 quatInverse.copy(quat).invert();
 
                 const position = scope.object.position;
 
-                offset.copy( position ).sub( scope.target );
+                offset.copy(position).sub(scope.target);
 
                 // rotate offset to "y-axis-is-up" space
-                offset.applyQuaternion( quat );
+                offset.applyQuaternion(quat);
 
                 // angle from z-axis around y-axis
-                spherical.setFromVector3( offset );
+                spherical.setFromVector3(offset);
 
-                if ( scope.autoRotate && state === STATE.NONE ) {
+                if (scope.autoRotate && state === STATE.NONE) {
 
-                    rotateLeft( getAutoRotationAngle() );
+                    rotateLeft(getAutoRotationAngle());
 
                 }
 
-                if ( scope.enableDamping ) {
+                if (scope.enableDamping) {
 
                     spherical.theta += sphericalDelta.theta * scope.dampingFactor;
                     spherical.phi += sphericalDelta.phi * scope.dampingFactor;
@@ -5010,149 +5018,149 @@ class OrbitControls extends EventDispatcher {
                 let min = scope.minAzimuthAngle;
                 let max = scope.maxAzimuthAngle;
 
-                if ( isFinite( min ) && isFinite( max ) ) {
+                if (isFinite(min) && isFinite(max)) {
 
-                    if ( min < - Math.PI ) min += twoPI; else if ( min > Math.PI ) min -= twoPI;
+                    if (min < - Math.PI) min += twoPI; else if (min > Math.PI) min -= twoPI;
 
-                    if ( max < - Math.PI ) max += twoPI; else if ( max > Math.PI ) max -= twoPI;
+                    if (max < - Math.PI) max += twoPI; else if (max > Math.PI) max -= twoPI;
 
-                    if ( min <= max ) {
+                    if (min <= max) {
 
-                        spherical.theta = Math.max( min, Math.min( max, spherical.theta ) );
+                        spherical.theta = Math.max(min, Math.min(max, spherical.theta));
 
                     } else {
 
-                        spherical.theta = ( spherical.theta > ( min + max ) / 2 ) ?
-                            Math.max( min, spherical.theta ) :
-                            Math.min( max, spherical.theta );
+                        spherical.theta = (spherical.theta > (min + max) / 2) ?
+                            Math.max(min, spherical.theta) :
+                            Math.min(max, spherical.theta);
 
                     }
 
                 }
 
                 // restrict phi to be between desired limits
-                spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
+                spherical.phi = Math.max(scope.minPolarAngle, Math.min(scope.maxPolarAngle, spherical.phi));
 
                 spherical.makeSafe();
 
 
                 // move target to panned location
 
-                if ( scope.enableDamping === true ) {
+                if (scope.enableDamping === true) {
 
-                    scope.target.addScaledVector( panOffset, scope.dampingFactor );
+                    scope.target.addScaledVector(panOffset, scope.dampingFactor);
 
                 } else {
 
-                    scope.target.add( panOffset );
+                    scope.target.add(panOffset);
 
                 }
 
                 // adjust the camera position based on zoom only if we're not zooming to the cursor or if it's an ortho camera
                 // we adjust zoom later in these cases
-                if ( scope.zoomToCursor && performCursorZoom || scope.object.isOrthographicCamera ) {
+                if (scope.zoomToCursor && performCursorZoom || scope.object.isOrthographicCamera) {
 
-                    spherical.radius = clampDistance( spherical.radius );
+                    spherical.radius = clampDistance(spherical.radius);
 
                 } else {
 
-                    spherical.radius = clampDistance( spherical.radius * scale );
+                    spherical.radius = clampDistance(spherical.radius * scale);
 
                 }
 
 
-                offset.setFromSpherical( spherical );
+                offset.setFromSpherical(spherical);
 
                 // rotate offset back to "camera-up-vector-is-up" space
-                offset.applyQuaternion( quatInverse );
+                offset.applyQuaternion(quatInverse);
 
-                position.copy( scope.target ).add( offset );
+                position.copy(scope.target).add(offset);
 
-                scope.object.lookAt( scope.target );
+                scope.object.lookAt(scope.target);
 
-                if ( scope.enableDamping === true ) {
+                if (scope.enableDamping === true) {
 
-                    sphericalDelta.theta *= ( 1 - scope.dampingFactor );
-                    sphericalDelta.phi *= ( 1 - scope.dampingFactor );
+                    sphericalDelta.theta *= (1 - scope.dampingFactor);
+                    sphericalDelta.phi *= (1 - scope.dampingFactor);
 
-                    panOffset.multiplyScalar( 1 - scope.dampingFactor );
+                    panOffset.multiplyScalar(1 - scope.dampingFactor);
 
                 } else {
 
-                    sphericalDelta.set( 0, 0, 0 );
+                    sphericalDelta.set(0, 0, 0);
 
-                    panOffset.set( 0, 0, 0 );
+                    panOffset.set(0, 0, 0);
 
                 }
 
                 // adjust camera position
                 let zoomChanged = false;
-                if ( scope.zoomToCursor && performCursorZoom ) {
+                if (scope.zoomToCursor && performCursorZoom) {
 
                     let newRadius = null;
-                    if ( scope.object.isPerspectiveCamera ) {
+                    if (scope.object.isPerspectiveCamera) {
 
                         // move the camera down the pointer ray
                         // this method avoids floating point error
                         const prevRadius = offset.length();
-                        newRadius = clampDistance( prevRadius * scale );
+                        newRadius = clampDistance(prevRadius * scale);
 
                         const radiusDelta = prevRadius - newRadius;
-                        scope.object.position.addScaledVector( dollyDirection, radiusDelta );
+                        scope.object.position.addScaledVector(dollyDirection, radiusDelta);
                         scope.object.updateMatrixWorld();
 
-                    } else if ( scope.object.isOrthographicCamera ) {
+                    } else if (scope.object.isOrthographicCamera) {
 
                         // adjust the ortho camera position based on zoom changes
-                        const mouseBefore = new Vector3( mouse.x, mouse.y, 0 );
-                        mouseBefore.unproject( scope.object );
+                        const mouseBefore = new Vector3(mouse.x, mouse.y, 0);
+                        mouseBefore.unproject(scope.object);
 
-                        scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
+                        scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom / scale));
                         scope.object.updateProjectionMatrix();
                         zoomChanged = true;
 
-                        const mouseAfter = new Vector3( mouse.x, mouse.y, 0 );
-                        mouseAfter.unproject( scope.object );
+                        const mouseAfter = new Vector3(mouse.x, mouse.y, 0);
+                        mouseAfter.unproject(scope.object);
 
-                        scope.object.position.sub( mouseAfter ).add( mouseBefore );
+                        scope.object.position.sub(mouseAfter).add(mouseBefore);
                         scope.object.updateMatrixWorld();
 
                         newRadius = offset.length();
 
                     } else {
 
-                        console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.' );
+                        console.warn('WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.');
                         scope.zoomToCursor = false;
 
                     }
 
                     // handle the placement of the target
-                    if ( newRadius !== null ) {
+                    if (newRadius !== null) {
 
-                        if ( this.screenSpacePanning ) {
+                        if (this.screenSpacePanning) {
 
                             // position the orbit target in front of the new camera position
-                            scope.target.set( 0, 0, - 1 )
-                                .transformDirection( scope.object.matrix )
-                                .multiplyScalar( newRadius )
-                                .add( scope.object.position );
+                            scope.target.set(0, 0, - 1)
+                                .transformDirection(scope.object.matrix)
+                                .multiplyScalar(newRadius)
+                                .add(scope.object.position);
 
                         } else {
 
                             // get the ray and translation plane to compute target
-                            _ray.origin.copy( scope.object.position );
-                            _ray.direction.set( 0, 0, - 1 ).transformDirection( scope.object.matrix );
+                            _ray.origin.copy(scope.object.position);
+                            _ray.direction.set(0, 0, - 1).transformDirection(scope.object.matrix);
 
                             // if the camera is 20 degrees above the horizon then don't adjust the focus target to avoid
                             // extremely large values
-                            if ( Math.abs( scope.object.up.dot( _ray.direction ) ) < TILT_LIMIT ) {
+                            if (Math.abs(scope.object.up.dot(_ray.direction)) < TILT_LIMIT) {
 
-                                object.lookAt( scope.target );
+                                object.lookAt(scope.target);
 
                             } else {
 
-                                _plane.setFromNormalAndCoplanarPoint( scope.object.up, scope.target );
-                                _ray.intersectPlane( _plane, scope.target );
+                                _plane.setFromNormalAndCoplanarPoint(scope.object.up, scope.target);
+                                _ray.intersectPlane(_plane, scope.target);
 
                             }
 
@@ -5160,9 +5168,9 @@ class OrbitControls extends EventDispatcher {
 
                     }
 
-                } else if ( scope.object.isOrthographicCamera ) {
+                } else if (scope.object.isOrthographicCamera) {
 
-                    scope.object.zoom = Math.max( scope.minZoom, Math.min( scope.maxZoom, scope.object.zoom / scale ) );
+                    scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom / scale));
                     scope.object.updateProjectionMatrix();
                     zoomChanged = true;
 
@@ -5175,16 +5183,16 @@ class OrbitControls extends EventDispatcher {
                 // min(camera displacement, camera rotation in radians)^2 > EPS
                 // using small-angle approximation cos(x/2) = 1 - x^2 / 8
 
-                if ( zoomChanged ||
-                    lastPosition.distanceToSquared( scope.object.position ) > EPS ||
-                    8 * ( 1 - lastQuaternion.dot( scope.object.quaternion ) ) > EPS ||
-                    lastTargetPosition.distanceToSquared( scope.target ) > 0 ) {
+                if (zoomChanged ||
+                    lastPosition.distanceToSquared(scope.object.position) > EPS ||
+                    8 * (1 - lastQuaternion.dot(scope.object.quaternion)) > EPS ||
+                    lastTargetPosition.distanceToSquared(scope.target) > 0) {
 
-                    scope.dispatchEvent( _changeEvent );
+                    scope.dispatchEvent(_changeEvent);
 
-                    lastPosition.copy( scope.object.position );
-                    lastQuaternion.copy( scope.object.quaternion );
-                    lastTargetPosition.copy( scope.target );
+                    lastPosition.copy(scope.object.position);
+                    lastQuaternion.copy(scope.object.quaternion);
+                    lastTargetPosition.copy(scope.target);
 
                     zoomChanged = false;
 
@@ -5198,21 +5206,21 @@ class OrbitControls extends EventDispatcher {
 
         }();
 
-        this.dispose = function() {
+        this.dispose = function () {
 
-            scope.domElement.removeEventListener( 'contextmenu', onContextMenu );
+            scope.domElement.removeEventListener('contextmenu', onContextMenu);
 
-            scope.domElement.removeEventListener( 'pointerdown', onPointerDown );
-            scope.domElement.removeEventListener( 'pointercancel', onPointerUp );
-            scope.domElement.removeEventListener( 'wheel', onMouseWheel );
+            scope.domElement.removeEventListener('pointerdown', onPointerDown);
+            scope.domElement.removeEventListener('pointercancel', onPointerUp);
+            scope.domElement.removeEventListener('wheel', onMouseWheel);
 
-            scope.domElement.removeEventListener( 'pointermove', onPointerMove );
-            scope.domElement.removeEventListener( 'pointerup', onPointerUp );
+            scope.domElement.removeEventListener('pointermove', onPointerMove);
+            scope.domElement.removeEventListener('pointerup', onPointerUp);
 
 
-            if ( scope._domElementKeyEvents !== null ) {
+            if (scope._domElementKeyEvents !== null) {
 
-                scope._domElementKeyEvents.removeEventListener( 'keydown', onKeyDown );
+                scope._domElementKeyEvents.removeEventListener('keydown', onKeyDown);
                 scope._domElementKeyEvents = null;
 
             }
@@ -5265,11 +5273,11 @@ class OrbitControls extends EventDispatcher {
 
         const pointers = [];
         const pointerPositions = {};
-        
+
 
         /**----------------------------------------------- */
         function enableFirstPerson(enable = true) {
-            
+
             scope.isFirstPersonMode = enable;
             if (enable) {
                 // 同步当前相机朝向到 _yaw/_pitch
@@ -5281,9 +5289,9 @@ class OrbitControls extends EventDispatcher {
             //     scope.enableRotate = false;
             //     scope.enableZoom = false;
             //     scope.enablePan = false;
-                // scope.domElement.requestPointerLock(); // 可选
+            // scope.domElement.requestPointerLock(); // 可选
             // } else {
-                // document.exitPointerLock(); // 可选
+            // document.exitPointerLock(); // 可选
             //     scope.enableRotate = true;
             //     scope.enableZoom = true;
             //     scope.enablePan = true;
@@ -5300,94 +5308,94 @@ class OrbitControls extends EventDispatcher {
 
         function getZoomScale() {
 
-            return Math.pow( 0.95, scope.zoomSpeed );
+            return Math.pow(0.95, scope.zoomSpeed);
 
         }
 
-        function rotateLeft( angle ) {
+        function rotateLeft(angle) {
 
             sphericalDelta.theta -= angle;
 
         }
 
-        function rotateUp( angle ) {
+        function rotateUp(angle) {
 
             sphericalDelta.phi -= angle;
 
         }
 
-        const panLeft = function() {
+        const panLeft = function () {
 
             const v = new Vector3();
 
-            return function panLeft( distance, objectMatrix ) {
+            return function panLeft(distance, objectMatrix) {
 
-                v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
-                v.multiplyScalar( - distance );
+                v.setFromMatrixColumn(objectMatrix, 0); // get X column of objectMatrix
+                v.multiplyScalar(- distance);
 
-                panOffset.add( v );
+                panOffset.add(v);
 
             };
 
         }();
-        const panUp = function() {
+        const panUp = function () {
             const v = new Vector3();
 
-            return function panUp( distance, objectMatrix ) {
+            return function panUp(distance, objectMatrix) {
 
-                    // console.log(53444444, scope.screenSpacePanning, scope.isFirstPersonMode)
-                if ( scope.screenSpacePanning === true ) {
+                // console.log(53444444, scope.screenSpacePanning, scope.isFirstPersonMode)
+                if (scope.screenSpacePanning === true) {
                     // 原始写法
 
-                    v.setFromMatrixColumn( objectMatrix, 1 );
+                    v.setFromMatrixColumn(objectMatrix, 1);
                 } else {
 
-                    v.setFromMatrixColumn( objectMatrix, 0 );
-                    v.crossVectors( scope.object.up, v );
+                    v.setFromMatrixColumn(objectMatrix, 0);
+                    v.crossVectors(scope.object.up, v);
 
                 }
 
-                v.multiplyScalar( distance );
+                v.multiplyScalar(distance);
 
-                panOffset.add( v );
+                panOffset.add(v);
 
             };
 
         }();
 
         // 移动 deltaX and deltaY are in pixels; right and down are positive
-        const pan = function() {
+        const pan = function () {
             const offset = new Vector3();
 
-            return function pan( deltaX, deltaY ) {
+            return function pan(deltaX, deltaY) {
 
                 const element = scope.domElement;
 
-                if ( scope.object.isPerspectiveCamera ) {
+                if (scope.object.isPerspectiveCamera) {
 
                     // perspective
                     const position = scope.object.position;
-                    offset.copy( position ).sub( scope.target );
+                    offset.copy(position).sub(scope.target);
                     let targetDistance = offset.length();
 
                     // half of the fov is center to top of screen
-                    targetDistance *= Math.tan( ( scope.object.fov / 2 ) * Math.PI / 180.0 );
+                    targetDistance *= Math.tan((scope.object.fov / 2) * Math.PI / 180.0);
 
                     // we use only clientHeight here so aspect ratio does not distort speed
-                    panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
-                    panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
+                    panLeft(2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix);
+                    panUp(2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix);
 
-                } else if ( scope.object.isOrthographicCamera ) {
+                } else if (scope.object.isOrthographicCamera) {
                     // orthographic
-                    panLeft( deltaX * ( scope.object.right - scope.object.left ) /
-                                        scope.object.zoom / element.clientWidth, scope.object.matrix );
-                    panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom /
-                                      element.clientHeight, scope.object.matrix );
+                    panLeft(deltaX * (scope.object.right - scope.object.left) /
+                        scope.object.zoom / element.clientWidth, scope.object.matrix);
+                    panUp(deltaY * (scope.object.top - scope.object.bottom) / scope.object.zoom /
+                        element.clientHeight, scope.object.matrix);
 
                 } else {
 
                     // camera neither orthographic nor perspective
-                    console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
+                    console.warn('WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.');
                     scope.enablePan = false;
 
                 }
@@ -5396,39 +5404,39 @@ class OrbitControls extends EventDispatcher {
 
         }();
 
-        function dollyOut( dollyScale ) {
+        function dollyOut(dollyScale) {
 
-            if ( scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera ) {
+            if (scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera) {
 
                 scale /= dollyScale;
 
             } else {
 
-                console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+                console.warn('WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.');
                 scope.enableZoom = false;
 
             }
 
         }
 
-        function dollyIn( dollyScale ) {
+        function dollyIn(dollyScale) {
 
-            if ( scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera ) {
+            if (scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera) {
 
                 scale *= dollyScale;
 
             } else {
 
-                console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.' );
+                console.warn('WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.');
                 scope.enableZoom = false;
 
             }
 
         }
 
-        function updateMouseParameters( event ) {
+        function updateMouseParameters(event) {
 
-            if ( ! scope.zoomToCursor ) {
+            if (!scope.zoomToCursor) {
 
                 return;
 
@@ -5442,16 +5450,16 @@ class OrbitControls extends EventDispatcher {
             const w = rect.width;
             const h = rect.height;
 
-            mouse.x = ( x / w ) * 2 - 1;
-            mouse.y = - ( y / h ) * 2 + 1;
+            mouse.x = (x / w) * 2 - 1;
+            mouse.y = - (y / h) * 2 + 1;
 
-            dollyDirection.set( mouse.x, mouse.y, 1 ).unproject( object ).sub( object.position ).normalize();
+            dollyDirection.set(mouse.x, mouse.y, 1).unproject(object).sub(object.position).normalize();
 
         }
 
-        function clampDistance( dist ) {
+        function clampDistance(dist) {
 
-            return Math.max( scope.minDistance, Math.min( scope.maxDistance, dist ) );
+            return Math.max(scope.minDistance, Math.min(scope.maxDistance, dist));
 
         }
 
@@ -5459,29 +5467,29 @@ class OrbitControls extends EventDispatcher {
         // event callbacks - update the object state
         //
 
-        function handleMouseDownRotate( event ) {
+        function handleMouseDownRotate(event) {
 
-            rotateStart.set( event.clientX, event.clientY );
-
-        }
-
-        function handleMouseDownDolly( event ) {
-
-            updateMouseParameters( event );
-            dollyStart.set( event.clientX, event.clientY );
+            rotateStart.set(event.clientX, event.clientY);
 
         }
 
-        function handleMouseDownPan( event ) {
-            panStart.set( event.clientX, event.clientY );
+        function handleMouseDownDolly(event) {
+
+            updateMouseParameters(event);
+            dollyStart.set(event.clientX, event.clientY);
 
         }
 
-        function handleMouseMoveRotate( event ) {
+        function handleMouseDownPan(event) {
+            panStart.set(event.clientX, event.clientY);
 
-            
+        }
 
-/**-------------------------------------------------------- */
+        function handleMouseMoveRotate(event) {
+
+
+
+            /**-------------------------------------------------------- */
             if (scope.isFirstPersonMode) {
 
                 scope._yaw -= event.movementX * 0.002;
@@ -5496,48 +5504,48 @@ class OrbitControls extends EventDispatcher {
                 return;
             }
 
-/**-------------------------------------------------------- */
+            /**-------------------------------------------------------- */
 
-            rotateEnd.set( event.clientX, event.clientY );
+            rotateEnd.set(event.clientX, event.clientY);
 
-            rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+            rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(scope.rotateSpeed);
 
             const element = scope.domElement;
 
-            rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+            rotateLeft(2 * Math.PI * rotateDelta.x / element.clientHeight); // yes, height
 
-            rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
+            rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight);
 
-            rotateStart.copy( rotateEnd );
+            rotateStart.copy(rotateEnd);
 
             scope.update();
 
 
         }
 
-        function handleMouseMoveDolly( event ) {
+        function handleMouseMoveDolly(event) {
 
-            dollyEnd.set( event.clientX, event.clientY );
+            dollyEnd.set(event.clientX, event.clientY);
 
-            dollyDelta.subVectors( dollyEnd, dollyStart );
+            dollyDelta.subVectors(dollyEnd, dollyStart);
 
-            if ( dollyDelta.y > 0 ) {
+            if (dollyDelta.y > 0) {
 
-                dollyOut( getZoomScale() );
+                dollyOut(getZoomScale());
 
-            } else if ( dollyDelta.y < 0 ) {
+            } else if (dollyDelta.y < 0) {
 
-                dollyIn( getZoomScale() );
+                dollyIn(getZoomScale());
 
             }
 
-            dollyStart.copy( dollyEnd );
+            dollyStart.copy(dollyEnd);
 
             scope.update();
 
         }
 
-        function handleMouseMovePan( event ) {
+        function handleMouseMovePan(event) {
             if (scope.isFirstPersonMode) {
                 // 计算平移增量
                 panEnd.set(event.clientX, event.clientY);
@@ -5559,30 +5567,30 @@ class OrbitControls extends EventDispatcher {
                 return;
             }
 
-                panEnd.set( event.clientX, event.clientY );
+            panEnd.set(event.clientX, event.clientY);
 
-                panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
+            panDelta.subVectors(panEnd, panStart).multiplyScalar(scope.panSpeed);
 
-                pan( panDelta.x, panDelta.y );
+            pan(panDelta.x, panDelta.y);
 
-                panStart.copy( panEnd );
+            panStart.copy(panEnd);
 
-                scope.update();
-            
+            scope.update();
+
 
         }
 
-        function handleMouseWheel( event ) {
+        function handleMouseWheel(event) {
 
-            updateMouseParameters( event );
+            updateMouseParameters(event);
 
-            if ( event.deltaY < 0 ) {
+            if (event.deltaY < 0) {
 
-                dollyIn( getZoomScale() );
+                dollyIn(getZoomScale());
 
-            } else if ( event.deltaY > 0 ) {
+            } else if (event.deltaY > 0) {
 
-                dollyOut( getZoomScale() );
+                dollyOut(getZoomScale());
 
             }
 
@@ -5600,100 +5608,100 @@ class OrbitControls extends EventDispatcher {
             }
         }
         /**-------------------------------------------------------------------------------------------- */
-        function handleKeyDown( event ) {
+        function handleKeyDown(event) {
 
             let needsUpdate = false;
 
-        /**-----------------------------------------新加数据-------------------------------------------- */
-        // 记录按下的方向键
-        if (!scope.movingKeys[event.code]) {
-            scope.movingKeys[event.code] = true;
-        }
-        /**-------------------------------------------------------------------------------------------- */
-
-        if (!scope.movingKeys[event.code]) {
-            scope.movingKeys[event.code] = true;
-            // 按下时立即移动一次
-            switch (event.code) {
-                case scope.keys.UP:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                        rotateUp(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    } else {
-                        pan(0, -scope.keyPanSpeed);
-                    }
-                    break;
-                case scope.keys.BOTTOM:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                        rotateUp(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    } else {
-                        pan(0, scope.keyPanSpeed);
-                    }
-                    break;
-                case scope.keys.LEFT:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                        rotateLeft(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    } else {
-                        pan(scope.keyPanSpeed, 0);
-                    }
-                    break;
-                case scope.keys.RIGHT:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                        rotateLeft(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    } else {
-                        pan(-scope.keyPanSpeed, 0);
-                    }
-                    break;
+            /**-----------------------------------------新加数据-------------------------------------------- */
+            // 记录按下的方向键
+            if (!scope.movingKeys[event.code]) {
+                scope.movingKeys[event.code] = true;
             }
-            scope.update();
-        }
+            /**-------------------------------------------------------------------------------------------- */
 
-        if (!scope.moveInterval) {
-            scope.moveInterval = setInterval(() => {
-                for (let code in scope.movingKeys) {
-                    switch (code) {
-                        case scope.keys.UP:
-                            if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                                rotateUp(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                            } else {
-                                pan(0, -scope.keyPanSpeed);
-                            }
-                            break;
-                        case scope.keys.BOTTOM:
-                            if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                                rotateUp(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                            } else {
-                                pan(0, scope.keyPanSpeed);
-                            }
-                            break;
-                        case scope.keys.LEFT:
-                            if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                                rotateLeft(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                            } else {
-                                pan(scope.keyPanSpeed, 0);
-                            }
-                            break;
-                        case scope.keys.RIGHT:
-                            if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                                rotateLeft(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                            } else {
-                                pan(-scope.keyPanSpeed, 0);
-                            }
-                            break;
-                    }
+            if (!scope.movingKeys[event.code]) {
+                scope.movingKeys[event.code] = true;
+                // 按下时立即移动一次
+                switch (event.code) {
+                    case scope.keys.UP:
+                        if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                            rotateUp(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                        } else {
+                            pan(0, -scope.keyPanSpeed);
+                        }
+                        break;
+                    case scope.keys.BOTTOM:
+                        if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                            rotateUp(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                        } else {
+                            pan(0, scope.keyPanSpeed);
+                        }
+                        break;
+                    case scope.keys.LEFT:
+                        if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                            rotateLeft(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                        } else {
+                            pan(scope.keyPanSpeed, 0);
+                        }
+                        break;
+                    case scope.keys.RIGHT:
+                        if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                            rotateLeft(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                        } else {
+                            pan(-scope.keyPanSpeed, 0);
+                        }
+                        break;
                 }
                 scope.update();
-            }, 16); // 约60fps
-        }
+            }
 
-            switch ( event.code ) {
+            if (!scope.moveInterval) {
+                scope.moveInterval = setInterval(() => {
+                    for (let code in scope.movingKeys) {
+                        switch (code) {
+                            case scope.keys.UP:
+                                if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                                    rotateUp(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                                } else {
+                                    pan(0, -scope.keyPanSpeed);
+                                }
+                                break;
+                            case scope.keys.BOTTOM:
+                                if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                                    rotateUp(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                                } else {
+                                    pan(0, scope.keyPanSpeed);
+                                }
+                                break;
+                            case scope.keys.LEFT:
+                                if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                                    rotateLeft(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                                } else {
+                                    pan(scope.keyPanSpeed, 0);
+                                }
+                                break;
+                            case scope.keys.RIGHT:
+                                if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                                    rotateLeft(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                                } else {
+                                    pan(-scope.keyPanSpeed, 0);
+                                }
+                                break;
+                        }
+                    }
+                    scope.update();
+                }, 16); // 约60fps
+            }
+
+            switch (event.code) {
 
                 case scope.keys.CHANGE:
-                    
+
                     enableFirstPerson(!scope.isFirstPersonMode);
 
                     needsUpdate = true;
                     break;
-                }
+            }
             if (needsUpdate) {
 
                 // prevent the browser from scrolling on cursor keys
@@ -5708,16 +5716,16 @@ class OrbitControls extends EventDispatcher {
 
         function handleTouchStartRotate() {
 
-            if ( pointers.length === 1 ) {
+            if (pointers.length === 1) {
 
-                rotateStart.set( pointers[0].pageX, pointers[0].pageY );
+                rotateStart.set(pointers[0].pageX, pointers[0].pageY);
 
             } else {
 
-                const x = 0.5 * ( pointers[0].pageX + pointers[1].pageX );
-                const y = 0.5 * ( pointers[0].pageY + pointers[1].pageY );
+                const x = 0.5 * (pointers[0].pageX + pointers[1].pageX);
+                const y = 0.5 * (pointers[0].pageY + pointers[1].pageY);
 
-                rotateStart.set( x, y );
+                rotateStart.set(x, y);
 
             }
 
@@ -5725,16 +5733,16 @@ class OrbitControls extends EventDispatcher {
 
         function handleTouchStartPan() {
 
-            if ( pointers.length === 1 ) {
+            if (pointers.length === 1) {
 
-                panStart.set( pointers[0].pageX, pointers[0].pageY );
+                panStart.set(pointers[0].pageX, pointers[0].pageY);
 
             } else {
 
-                const x = 0.5 * ( pointers[0].pageX + pointers[1].pageX );
-                const y = 0.5 * ( pointers[0].pageY + pointers[1].pageY );
+                const x = 0.5 * (pointers[0].pageX + pointers[1].pageX);
+                const y = 0.5 * (pointers[0].pageY + pointers[1].pageY);
 
-                panStart.set( x, y );
+                panStart.set(x, y);
 
             }
 
@@ -5745,30 +5753,30 @@ class OrbitControls extends EventDispatcher {
             const dx = pointers[0].pageX - pointers[1].pageX;
             const dy = pointers[0].pageY - pointers[1].pageY;
 
-            const distance = Math.sqrt( dx * dx + dy * dy );
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-            dollyStart.set( 0, distance );
+            dollyStart.set(0, distance);
 
         }
 
         function handleTouchStartDollyPan() {
 
-            if ( scope.enableZoom ) handleTouchStartDolly();
+            if (scope.enableZoom) handleTouchStartDolly();
 
-            if ( scope.enablePan ) handleTouchStartPan();
+            if (scope.enablePan) handleTouchStartPan();
 
         }
 
         function handleTouchStartDollyRotate() {
 
-            if ( scope.enableZoom ) handleTouchStartDolly();
+            if (scope.enableZoom) handleTouchStartDolly();
 
-            if ( scope.enableRotate ) handleTouchStartRotate();
+            if (scope.enableRotate) handleTouchStartRotate();
 
         }
 
-        function handleTouchMoveRotate( event ) {
-            /**-------------------------------------------------------- */ 
+        function handleTouchMoveRotate(event) {
+            /**-------------------------------------------------------- */
             if (scope.isFirstPersonMode) {
                 // 计算 touch 移动距离
                 let dx, dy;
@@ -5798,37 +5806,37 @@ class OrbitControls extends EventDispatcher {
                 rotateStart.copy(rotateEnd);
                 return;
             }
-            /**-------------------------------------------------------- */ 
+            /**-------------------------------------------------------- */
 
-            if ( pointers.length == 1 ) {
+            if (pointers.length == 1) {
 
-                rotateEnd.set( event.pageX, event.pageY );
+                rotateEnd.set(event.pageX, event.pageY);
 
             } else {
 
-                const position = getSecondPointerPosition( event );
+                const position = getSecondPointerPosition(event);
 
-                const x = 0.5 * ( event.pageX + position.x );
-                const y = 0.5 * ( event.pageY + position.y );
+                const x = 0.5 * (event.pageX + position.x);
+                const y = 0.5 * (event.pageY + position.y);
 
-                rotateEnd.set( x, y );
+                rotateEnd.set(x, y);
 
             }
 
-            rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
+            rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(scope.rotateSpeed);
 
             const element = scope.domElement;
 
-            rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+            rotateLeft(2 * Math.PI * rotateDelta.x / element.clientHeight); // yes, height
 
-            rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
+            rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight);
 
-            rotateStart.copy( rotateEnd );
+            rotateStart.copy(rotateEnd);
 
         }
 
-        function handleTouchMovePan( event ) {
-        /**---------------------------------------- */
+        function handleTouchMovePan(event) {
+            /**---------------------------------------- */
             if (scope.isFirstPersonMode) {
                 // 双指平移：左右/上下平移相机
                 if (pointers.length === 1) {
@@ -5856,33 +5864,33 @@ class OrbitControls extends EventDispatcher {
                 panStart.copy(panEnd);
                 return;
             }
-         /**---------------------------------------- */
+            /**---------------------------------------- */
 
-            if ( pointers.length === 1 ) {
+            if (pointers.length === 1) {
 
-                panEnd.set( event.pageX, event.pageY );
+                panEnd.set(event.pageX, event.pageY);
 
             } else {
 
-                const position = getSecondPointerPosition( event );
+                const position = getSecondPointerPosition(event);
 
-                const x = 0.5 * ( event.pageX + position.x );
-                const y = 0.5 * ( event.pageY + position.y );
+                const x = 0.5 * (event.pageX + position.x);
+                const y = 0.5 * (event.pageY + position.y);
 
-                panEnd.set( x, y );
+                panEnd.set(x, y);
 
             }
 
-            panDelta.subVectors( panEnd, panStart ).multiplyScalar( scope.panSpeed );
+            panDelta.subVectors(panEnd, panStart).multiplyScalar(scope.panSpeed);
 
-            pan( panDelta.x, panDelta.y );
+            pan(panDelta.x, panDelta.y);
 
-            panStart.copy( panEnd );
+            panStart.copy(panEnd);
 
         }
 
-        function handleTouchMoveDolly( event ) {
-        /**---------------------------------------- */
+        function handleTouchMoveDolly(event) {
+            /**---------------------------------------- */
             if (scope.isFirstPersonMode) {
                 // 双指缩放：前后移动相机
                 const position = getSecondPointerPosition(event);
@@ -5902,39 +5910,39 @@ class OrbitControls extends EventDispatcher {
                 dollyStart.copy(dollyEnd);
                 return;
             }
-        /**---------------------------------------- */
+            /**---------------------------------------- */
 
 
-            const position = getSecondPointerPosition( event );
+            const position = getSecondPointerPosition(event);
 
             const dx = event.pageX - position.x;
             const dy = event.pageY - position.y;
 
-            const distance = Math.sqrt( dx * dx + dy * dy );
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-            dollyEnd.set( 0, distance );
+            dollyEnd.set(0, distance);
 
-            dollyDelta.set( 0, Math.pow( dollyEnd.y / dollyStart.y, scope.zoomSpeed ) );
+            dollyDelta.set(0, Math.pow(dollyEnd.y / dollyStart.y, scope.zoomSpeed));
 
-            dollyOut( dollyDelta.y );
+            dollyOut(dollyDelta.y);
 
-            dollyStart.copy( dollyEnd );
-
-        }
-
-        function handleTouchMoveDollyPan( event ) {
-
-            if ( scope.enableZoom ) handleTouchMoveDolly( event );
-
-            if ( scope.enablePan ) handleTouchMovePan( event );
+            dollyStart.copy(dollyEnd);
 
         }
 
-        function handleTouchMoveDollyRotate( event ) {
+        function handleTouchMoveDollyPan(event) {
 
-            if ( scope.enableZoom ) handleTouchMoveDolly( event );
+            if (scope.enableZoom) handleTouchMoveDolly(event);
 
-            if ( scope.enableRotate ) handleTouchMoveRotate( event );
+            if (scope.enablePan) handleTouchMovePan(event);
+
+        }
+
+        function handleTouchMoveDollyRotate(event) {
+
+            if (scope.enableZoom) handleTouchMoveDolly(event);
+
+            if (scope.enableRotate) handleTouchMoveRotate(event);
 
         }
 
@@ -5992,27 +6000,27 @@ class OrbitControls extends EventDispatcher {
             state = STATE.NONE;
         }
 
-        function onPointerMove( event ) {
+        function onPointerMove(event) {
 
-            if ( scope.enabled === false ) return;
+            if (scope.enabled === false) return;
 
-            if ( event.pointerType === 'touch' ) {
+            if (event.pointerType === 'touch') {
 
-                onTouchMove( event );
+                onTouchMove(event);
 
             } else {
 
-                onMouseMove( event );
+                onMouseMove(event);
 
             }
 
         }
 
-        function onMouseDown( event ) {
+        function onMouseDown(event) {
 
             let mouseAction;
 
-            switch ( event.button ) {
+            switch (event.button) {
 
                 case 0:
 
@@ -6035,13 +6043,13 @@ class OrbitControls extends EventDispatcher {
 
             }
 
-            switch ( mouseAction ) {
+            switch (mouseAction) {
 
                 case MOUSE.DOLLY:
 
-                    if ( scope.enableZoom === false ) return;
+                    if (scope.enableZoom === false) return;
 
-                    handleMouseDownDolly( event );
+                    handleMouseDownDolly(event);
 
                     state = STATE.DOLLY;
 
@@ -6049,19 +6057,19 @@ class OrbitControls extends EventDispatcher {
 
                 case MOUSE.ROTATE:
 
-                    if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
 
-                        if ( scope.enablePan === false ) return;
+                        if (scope.enablePan === false) return;
 
-                        handleMouseDownPan( event );
+                        handleMouseDownPan(event);
 
                         state = STATE.PAN;
 
                     } else {
 
-                        if ( scope.enableRotate === false ) return;
+                        if (scope.enableRotate === false) return;
 
-                        handleMouseDownRotate( event );
+                        handleMouseDownRotate(event);
 
                         state = STATE.ROTATE;
 
@@ -6071,19 +6079,19 @@ class OrbitControls extends EventDispatcher {
 
                 case MOUSE.PAN:
 
-                    if ( event.ctrlKey || event.metaKey || event.shiftKey ) {
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
 
-                        if ( scope.enableRotate === false ) return;
+                        if (scope.enableRotate === false) return;
 
-                        handleMouseDownRotate( event );
+                        handleMouseDownRotate(event);
 
                         state = STATE.ROTATE;
 
                     } else {
 
-                        if ( scope.enablePan === false ) return;
+                        if (scope.enablePan === false) return;
 
-                        handleMouseDownPan( event );
+                        handleMouseDownPan(event);
 
                         state = STATE.PAN;
 
@@ -6097,38 +6105,38 @@ class OrbitControls extends EventDispatcher {
 
             }
 
-            if ( state !== STATE.NONE ) {
+            if (state !== STATE.NONE) {
 
-                scope.dispatchEvent( _startEvent );
+                scope.dispatchEvent(_startEvent);
 
             }
 
         }
 
-        function onMouseMove( event ) {
-            switch ( state ) {
+        function onMouseMove(event) {
+            switch (state) {
 
                 case STATE.ROTATE:
 
-                    if ( scope.enableRotate === false ) return;
+                    if (scope.enableRotate === false) return;
 
-                    handleMouseMoveRotate( event );
+                    handleMouseMoveRotate(event);
 
                     break;
 
                 case STATE.DOLLY:
 
-                    if ( scope.enableZoom === false ) return;
+                    if (scope.enableZoom === false) return;
 
-                    handleMouseMoveDolly( event );
+                    handleMouseMoveDolly(event);
 
                     break;
 
                 case STATE.PAN:
 
-                    if ( scope.enablePan === false ) return;
+                    if (scope.enablePan === false) return;
 
-                    handleMouseMovePan( event );
+                    handleMouseMovePan(event);
 
                     break;
 
@@ -6136,7 +6144,7 @@ class OrbitControls extends EventDispatcher {
 
         }
 
-        function onMouseWheel( event ) {
+        function onMouseWheel(event) {
 
             // 第一人称模式下自定义滚轮行为
             if (scope.isFirstPersonMode) {
@@ -6148,48 +6156,48 @@ class OrbitControls extends EventDispatcher {
                 return;
             }
 
-            if ( scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE ) return;
+            if (scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE) return;
 
             event.preventDefault();
 
-            scope.dispatchEvent( _startEvent );
+            scope.dispatchEvent(_startEvent);
 
-            handleMouseWheel( event );
+            handleMouseWheel(event);
 
-            scope.dispatchEvent( _endEvent );
+            scope.dispatchEvent(_endEvent);
 
         }
 
-        function onKeyDown( event ) {
+        function onKeyDown(event) {
 
-            if ( scope.enabled === false || scope.enablePan === false ) return;
+            if (scope.enabled === false || scope.enablePan === false) return;
 
-            handleKeyDown( event );
+            handleKeyDown(event);
 
         }
         /**-----------------------------------------新增数据----------------------------------------------- */
-        function onKeyUp( event ) {
+        function onKeyUp(event) {
 
-            if ( scope.enabled === false || scope.enablePan === false ) return;
+            if (scope.enabled === false || scope.enablePan === false) return;
 
-            handleKeyUp( event );
+            handleKeyUp(event);
 
         }
         /**----------------------------------------------------------------------------------------------- */
 
-        function onTouchStart( event ) {
+        function onTouchStart(event) {
 
-            trackPointer( event );
+            trackPointer(event);
 
-            switch ( pointers.length ) {
+            switch (pointers.length) {
 
                 case 1:
 
-                    switch ( scope.touches.ONE ) {
+                    switch (scope.touches.ONE) {
 
                         case TOUCH.ROTATE:
 
-                            if ( scope.enableRotate === false ) return;
+                            if (scope.enableRotate === false) return;
 
                             handleTouchStartRotate();
 
@@ -6199,7 +6207,7 @@ class OrbitControls extends EventDispatcher {
 
                         case TOUCH.PAN:
 
-                            if ( scope.enablePan === false ) return;
+                            if (scope.enablePan === false) return;
 
                             handleTouchStartPan();
 
@@ -6217,11 +6225,11 @@ class OrbitControls extends EventDispatcher {
 
                 case 2:
 
-                    switch ( scope.touches.TWO ) {
+                    switch (scope.touches.TWO) {
 
                         case TOUCH.DOLLY_PAN:
 
-                            if ( scope.enableZoom === false && scope.enablePan === false ) return;
+                            if (scope.enableZoom === false && scope.enablePan === false) return;
 
                             handleTouchStartDollyPan();
 
@@ -6231,7 +6239,7 @@ class OrbitControls extends EventDispatcher {
 
                         case TOUCH.DOLLY_ROTATE:
 
-                            if ( scope.enableZoom === false && scope.enableRotate === false ) return;
+                            if (scope.enableZoom === false && scope.enableRotate === false) return;
 
                             handleTouchStartDollyRotate();
 
@@ -6253,25 +6261,25 @@ class OrbitControls extends EventDispatcher {
 
             }
 
-            if ( state !== STATE.NONE ) {
+            if (state !== STATE.NONE) {
 
-                scope.dispatchEvent( _startEvent );
+                scope.dispatchEvent(_startEvent);
 
             }
 
         }
 
-        function onTouchMove( event ) {
+        function onTouchMove(event) {
 
-            trackPointer( event );
+            trackPointer(event);
 
-            switch ( state ) {
+            switch (state) {
 
                 case STATE.TOUCH_ROTATE:
 
-                    if ( scope.enableRotate === false ) return;
+                    if (scope.enableRotate === false) return;
 
-                    handleTouchMoveRotate( event );
+                    handleTouchMoveRotate(event);
 
                     scope.update();
 
@@ -6279,9 +6287,9 @@ class OrbitControls extends EventDispatcher {
 
                 case STATE.TOUCH_PAN:
 
-                    if ( scope.enablePan === false ) return;
+                    if (scope.enablePan === false) return;
 
-                    handleTouchMovePan( event );
+                    handleTouchMovePan(event);
 
                     scope.update();
 
@@ -6289,9 +6297,9 @@ class OrbitControls extends EventDispatcher {
 
                 case STATE.TOUCH_DOLLY_PAN:
 
-                    if ( scope.enableZoom === false && scope.enablePan === false ) return;
+                    if (scope.enableZoom === false && scope.enablePan === false) return;
 
-                    handleTouchMoveDollyPan( event );
+                    handleTouchMoveDollyPan(event);
 
                     scope.update();
 
@@ -6299,9 +6307,9 @@ class OrbitControls extends EventDispatcher {
 
                 case STATE.TOUCH_DOLLY_ROTATE:
 
-                    if ( scope.enableZoom === false && scope.enableRotate === false ) return;
+                    if (scope.enableZoom === false && scope.enableRotate === false) return;
 
-                    handleTouchMoveDollyRotate( event );
+                    handleTouchMoveDollyRotate(event);
 
                     scope.update();
 
@@ -6315,29 +6323,29 @@ class OrbitControls extends EventDispatcher {
 
         }
 
-        function onContextMenu( event ) {
+        function onContextMenu(event) {
 
-            if ( scope.enabled === false ) return;
+            if (scope.enabled === false) return;
 
             event.preventDefault();
 
         }
 
-        function addPointer( event ) {
+        function addPointer(event) {
 
-            pointers.push( event );
+            pointers.push(event);
 
         }
 
-        function removePointer( event ) {
+        function removePointer(event) {
 
             delete pointerPositions[event.pointerId];
 
-            for ( let i = 0; i < pointers.length; i ++ ) {
+            for (let i = 0; i < pointers.length; i++) {
 
-                if ( pointers[i].pointerId == event.pointerId ) {
+                if (pointers[i].pointerId == event.pointerId) {
 
-                    pointers.splice( i, 1 );
+                    pointers.splice(i, 1);
                     return;
 
                 }
@@ -6346,24 +6354,24 @@ class OrbitControls extends EventDispatcher {
 
         }
 
-        function trackPointer( event ) {
+        function trackPointer(event) {
 
             let position = pointerPositions[event.pointerId];
 
-            if ( position === undefined ) {
+            if (position === undefined) {
 
                 position = new Vector2();
                 pointerPositions[event.pointerId] = position;
 
             }
 
-            position.set( event.pageX, event.pageY );
+            position.set(event.pageX, event.pageY);
 
         }
 
-        function getSecondPointerPosition( event ) {
+        function getSecondPointerPosition(event) {
 
-            const pointer = ( event.pointerId === pointers[0].pointerId ) ? pointers[1] : pointers[0];
+            const pointer = (event.pointerId === pointers[0].pointerId) ? pointers[1] : pointers[0];
 
             return pointerPositions[pointer.pointerId];
 
@@ -6371,11 +6379,11 @@ class OrbitControls extends EventDispatcher {
 
         //
 
-        scope.domElement.addEventListener( 'contextmenu', onContextMenu );
+        scope.domElement.addEventListener('contextmenu', onContextMenu);
 
-        scope.domElement.addEventListener( 'pointerdown', onPointerDown );
-        scope.domElement.addEventListener( 'pointercancel', onPointerUp );
-        scope.domElement.addEventListener( 'wheel', onMouseWheel, { passive: false } );
+        scope.domElement.addEventListener('pointerdown', onPointerDown);
+        scope.domElement.addEventListener('pointercancel', onPointerUp);
+        scope.domElement.addEventListener('wheel', onMouseWheel, { passive: false });
 
         // force an update at start
 
@@ -6874,9 +6882,9 @@ class InfoPanel {
         this.visible = false;
     }
 
-    update = function(renderDimensions, cameraPosition, cameraLookAtPosition, cameraUp, orthographicCamera,
-                      meshCursorPosition, currentFPS, splatCount, splatRenderCount,
-                      splatRenderCountPct, lastSortTime, focalAdjustment, splatScale, pointCloudMode) {
+    update = function (renderDimensions, cameraPosition, cameraLookAtPosition, cameraUp, orthographicCamera,
+        meshCursorPosition, currentFPS, splatCount, splatRenderCount,
+        splatRenderCountPct, lastSortTime, focalAdjustment, splatScale, pointCloudMode) {
 
         const cameraPosString = `${cameraPosition.x.toFixed(5)}, ${cameraPosition.y.toFixed(5)}, ${cameraPosition.z.toFixed(5)}`;
         if (this.infoCells.cameraPosition.innerHTML !== cameraPosString) {
@@ -6946,30 +6954,30 @@ const _axis = new THREE.Vector3();
 class ArrowHelper extends THREE.Object3D {
 
     constructor(dir = new THREE.Vector3(0, 0, 1), origin = new THREE.Vector3(0, 0, 0), length = 1,
-                radius = 0.1, color = 0xffff00, headLength = length * 0.2, headRadius = headLength * 0.2) {
+        radius = 0.1, color = 0xffff00, headLength = length * 0.2, headRadius = headLength * 0.2) {
         super();
 
         this.type = 'ArrowHelper';
 
         const lineGeometry = new THREE.CylinderGeometry(radius, radius, length, 32);
         lineGeometry.translate(0, length / 2.0, 0);
-        const coneGeometry = new THREE.CylinderGeometry( 0, headRadius, headLength, 32);
+        const coneGeometry = new THREE.CylinderGeometry(0, headRadius, headLength, 32);
         coneGeometry.translate(0, length, 0);
 
-        this.position.copy( origin );
+        this.position.copy(origin);
 
-        this.line = new THREE.Mesh(lineGeometry, new THREE.MeshBasicMaterial({color: color, toneMapped: false}));
+        this.line = new THREE.Mesh(lineGeometry, new THREE.MeshBasicMaterial({ color: color, toneMapped: false }));
         this.line.matrixAutoUpdate = false;
         this.add(this.line);
 
-        this.cone = new THREE.Mesh(coneGeometry, new THREE.MeshBasicMaterial({color: color, toneMapped: false}));
+        this.cone = new THREE.Mesh(coneGeometry, new THREE.MeshBasicMaterial({ color: color, toneMapped: false }));
         this.cone.matrixAutoUpdate = false;
         this.add(this.cone);
 
         this.setDirection(dir);
     }
 
-    setDirection( dir ) {
+    setDirection(dir) {
         if (dir.y > 0.99999) {
             this.quaternion.set(0, 0, 0, 1);
         } else if (dir.y < - 0.99999) {
@@ -6981,7 +6989,7 @@ class ArrowHelper extends THREE.Object3D {
         }
     }
 
-    setColor( color ) {
+    setColor(color) {
         this.line.material.color.set(color);
         this.cone.material.color.set(color);
     }
@@ -7092,7 +7100,7 @@ class SceneHelper {
     setupMeshCursor() {
         if (!this.meshCursor) {
             const coneGeometry = new THREE.ConeGeometry(0.5, 1.5, 32);
-            const coneMaterial = new THREE.MeshBasicMaterial({color: 0xFFFFFF});
+            const coneMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 
             const downArrow = new THREE.Mesh(coneGeometry, coneMaterial);
             downArrow.rotation.set(0, 0, Math.PI);
@@ -7161,13 +7169,13 @@ class SceneHelper {
         }
     }
 
-    updateFocusMarker = function() {
+    updateFocusMarker = function () {
 
         const tempPosition = new THREE.Vector3();
         const tempMatrix = new THREE.Matrix4();
         const toCamera = new THREE.Vector3();
 
-        return function(position, camera, viewport) {
+        return function (position, camera, viewport) {
             tempMatrix.copy(camera.matrixWorld).invert();
             tempPosition.copy(position).applyMatrix4(tempMatrix);
             tempPosition.normalize().multiplyScalar(10);
@@ -7200,7 +7208,7 @@ class SceneHelper {
         if (!this.controlPlane) {
             const planeGeometry = new THREE.PlaneGeometry(1, 1);
             planeGeometry.rotateX(-Math.PI / 2);
-            const planeMaterial = new THREE.MeshBasicMaterial({color: 0xffffff});
+            const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
             planeMaterial.transparent = true;
             planeMaterial.opacity = 0.6;
             planeMaterial.depthTest = false;
@@ -7233,12 +7241,12 @@ class SceneHelper {
         this.controlPlane.visible = visible;
     }
 
-    positionAndOrientControlPlane = function() {
+    positionAndOrientControlPlane = function () {
 
         const tempQuaternion = new THREE.Quaternion();
         const defaultUp = new THREE.Vector3(0, 1, 0);
 
-        return function(position, up) {
+        return function (position, up) {
             tempQuaternion.setFromUnitVectors(defaultUp, up);
             this.controlPlane.position.copy(position);
             this.controlPlane.quaternion.copy(tempQuaternion);
@@ -7472,18 +7480,18 @@ class Ray {
 
     boxContainsPoint(box, point, epsilon) {
         return point.x < box.min.x - epsilon || point.x > box.max.x + epsilon ||
-               point.y < box.min.y - epsilon || point.y > box.max.y + epsilon ||
-               point.z < box.min.z - epsilon || point.z > box.max.z + epsilon ? false : true;
+            point.y < box.min.y - epsilon || point.y > box.max.y + epsilon ||
+            point.z < box.min.z - epsilon || point.z > box.max.z + epsilon ? false : true;
     }
 
-    intersectBox = function() {
+    intersectBox = function () {
 
         const planeIntersectionPoint = new THREE.Vector3();
         const planeIntersectionPointArray = [];
         const originArray = [];
         const directionArray = [];
 
-        return function(box, outHit) {
+        return function (box, outHit) {
 
             originArray[0] = this.origin.x;
             originArray[1] = this.origin.y;
@@ -7516,8 +7524,8 @@ class Ray {
                     planeIntersectionPointArray[2] = directionArray[idx1] / directionArray[i] * toSide + originArray[idx1];
                     planeIntersectionPointArray[1] = directionArray[idx2] / directionArray[i] * toSide + originArray[idx2];
                     planeIntersectionPoint.set(planeIntersectionPointArray[i],
-                                               planeIntersectionPointArray[idx2],
-                                               planeIntersectionPointArray[idx1]);
+                        planeIntersectionPointArray[idx2],
+                        planeIntersectionPointArray[idx1]);
                     if (this.boxContainsPoint(box, planeIntersectionPoint, 0.0001)) {
                         if (outHit) {
                             outHit.origin.copy(planeIntersectionPoint);
@@ -7534,11 +7542,11 @@ class Ray {
 
     }();
 
-    intersectSphere = function() {
+    intersectSphere = function () {
 
         const toSphereCenterVec = new THREE.Vector3();
 
-        return function(center, radius, outHit) {
+        return function (center, radius, outHit) {
             toSphereCenterVec.copy(center).sub(this.origin);
             const toClosestApproach = toSphereCenterVec.dot(this.direction);
             const toClosestApproachSq = toClosestApproach * toClosestApproach;
@@ -7605,20 +7613,20 @@ class Raycaster {
         this.raycastAgainstTrueSplatEllipsoid = raycastAgainstTrueSplatEllipsoid;
     }
 
-    setFromCameraAndScreenPosition = function() {
+    setFromCameraAndScreenPosition = function () {
 
         const ndcCoords = new THREE.Vector2();
 
-        return function(camera, screenPosition, screenDimensions) {
+        return function (camera, screenPosition, screenDimensions) {
             ndcCoords.x = screenPosition.x / screenDimensions.x * 2.0 - 1.0;
             ndcCoords.y = (screenDimensions.y - screenPosition.y) / screenDimensions.y * 2.0 - 1.0;
             if (camera.isPerspectiveCamera) {
                 this.ray.origin.setFromMatrixPosition(camera.matrixWorld);
-                this.ray.direction.set(ndcCoords.x, ndcCoords.y, 0.5 ).unproject(camera).sub(this.ray.origin).normalize();
+                this.ray.direction.set(ndcCoords.x, ndcCoords.y, 0.5).unproject(camera).sub(this.ray.origin).normalize();
                 this.camera = camera;
             } else if (camera.isOrthographicCamera) {
                 this.ray.origin.set(ndcCoords.x, ndcCoords.y,
-                                   (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
+                    (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
                 this.ray.direction.set(0, 0, -1).transformDirection(camera.matrixWorld);
                 this.camera = camera;
             } else {
@@ -7628,7 +7636,7 @@ class Raycaster {
 
     }();
 
-    intersectSplatMesh = function() {
+    intersectSplatMesh = function () {
 
         const toLocal = new THREE.Matrix4();
         const fromLocal = new THREE.Matrix4();
@@ -7636,7 +7644,7 @@ class Raycaster {
         const localRay = new Ray();
         const tempPoint = new THREE.Vector3();
 
-        return function(splatMesh, outHits = []) {
+        return function (splatMesh, outHits = []) {
             const splatTree = splatMesh.getSplatTree();
 
             if (!splatTree) return;
@@ -7679,7 +7687,7 @@ class Raycaster {
 
     }();
 
-    castRayAtSplatTreeNode = function() {
+    castRayAtSplatTreeNode = function () {
 
         const tempColor = new THREE.Vector4();
         const tempCenter = new THREE.Vector3();
@@ -7696,7 +7704,7 @@ class Raycaster {
         const fromSphereSpace = new THREE.Matrix4();
         const tempRay = new Ray();
 
-        return function(ray, splatTree, node, outHits = []) {
+        return function (ray, splatTree, node, outHits = []) {
             if (!ray.intersectBox(node.boundingBox)) {
                 return;
             }
@@ -7748,7 +7756,7 @@ class Raycaster {
                         }
                     }
                 }
-             }
+            }
             if (node.children && node.children.length > 0) {
                 for (let child of node.children) {
                     this.castRayAtSplatTreeNode(ray, splatTree, child, outHits);
@@ -7779,20 +7787,20 @@ class SplatMaterial {
         uniform int sceneCount;
     `;
 
-    if (enableOptionalEffects) {
-        vertexShaderSource += `
+        if (enableOptionalEffects) {
+            vertexShaderSource += `
             uniform float sceneOpacity[${Constants.MaxScenes}];
             uniform int sceneVisibility[${Constants.MaxScenes}];
         `;
-    }
+        }
 
-    if (dynamicMode) {
-        vertexShaderSource += `
+        if (dynamicMode) {
+            vertexShaderSource += `
             uniform highp mat4 transforms[${Constants.MaxScenes}];
         `;
-    }
+        }
 
-    vertexShaderSource += `
+        vertexShaderSource += `
         ${customVars}
         uniform vec2 focal;
         uniform float orthoZoom;
@@ -7990,7 +7998,7 @@ class SplatMaterial {
                         sh3 = vec3(sampledSH01B.rg, sampledSH23B.r);
                     }
                 `;
-            // Sample spherical harmonics textures with 2 degrees worth of data for 1st degree calculations, and store in sh1, sh2, and sh3
+                // Sample spherical harmonics textures with 2 degrees worth of data for 1st degree calculations, and store in sh1, sh2, and sh3
             } else if (maxSphericalHarmonicsDegree === 2) {
                 vertexShaderSource += `
                     vec4 sampledSH0123;
@@ -8122,7 +8130,7 @@ class SplatMaterial {
     }
 
     static getUniforms(dynamicMode = false, enableOptionalEffects = false, maxSphericalHarmonicsDegree = 0,
-                       splatScale = 1.0, pointCloudModeEnabled = false) {
+        splatScale = 1.0, pointCloudModeEnabled = false) {
 
         const uniforms = {
             'sceneCenter': {
@@ -8256,7 +8264,7 @@ class SplatMaterial {
             for (let i = 0; i < Constants.MaxScenes; i++) {
                 sceneOpacity.push(1.0);
             }
-            uniforms['sceneOpacity'] ={
+            uniforms['sceneOpacity'] = {
                 'type': 'f',
                 'value': sceneOpacity
             };
@@ -8265,7 +8273,7 @@ class SplatMaterial {
             for (let i = 0; i < Constants.MaxScenes; i++) {
                 sceneVisibility.push(1);
             }
-            uniforms['sceneVisibility'] ={
+            uniforms['sceneVisibility'] = {
                 'type': 'i',
                 'value': sceneVisibility
             };
@@ -8304,7 +8312,7 @@ class SplatMaterial3D {
      * @return {THREE.ShaderMaterial}
      */
     static build(dynamicMode = false, enableOptionalEffects = false, antialiased = false, maxScreenSpaceSplatSize = 2048,
-                 splatScale = 1.0, pointCloudModeEnabled = false, maxSphericalHarmonicsDegree = 0, kernel2DSize = 0.3) {
+        splatScale = 1.0, pointCloudModeEnabled = false, maxSphericalHarmonicsDegree = 0, kernel2DSize = 0.3) {
 
         const customVertexVars = `
             uniform vec2 covariancesTextureSize;
@@ -8323,13 +8331,13 @@ class SplatMaterial3D {
         `;
 
         let vertexShaderSource = SplatMaterial.buildVertexShaderBase(dynamicMode, enableOptionalEffects,
-                                                                     maxSphericalHarmonicsDegree, customVertexVars);
+            maxSphericalHarmonicsDegree, customVertexVars);
         vertexShaderSource += SplatMaterial3D.buildVertexShaderProjection(antialiased, enableOptionalEffects,
-                                                                          maxScreenSpaceSplatSize, kernel2DSize);
+            maxScreenSpaceSplatSize, kernel2DSize);
         const fragmentShaderSource = SplatMaterial3D.buildFragmentShader();
 
         const uniforms = SplatMaterial.getUniforms(dynamicMode, enableOptionalEffects,
-                                                   maxSphericalHarmonicsDegree, splatScale, pointCloudModeEnabled);
+            maxSphericalHarmonicsDegree, splatScale, pointCloudModeEnabled);
 
         uniforms['covariancesTextureSize'] = {
             'type': 'v2',
@@ -8556,7 +8564,7 @@ class SplatMaterial2D {
      * @return {THREE.ShaderMaterial}
      */
     static build(dynamicMode = false, enableOptionalEffects = false, splatScale = 1.0,
-                 pointCloudModeEnabled = false, maxSphericalHarmonicsDegree = 0) {
+        pointCloudModeEnabled = false, maxSphericalHarmonicsDegree = 0) {
 
         const customVertexVars = `
             uniform vec2 scaleRotationsTextureSize;
@@ -8567,12 +8575,12 @@ class SplatMaterial2D {
         `;
 
         let vertexShaderSource = SplatMaterial.buildVertexShaderBase(dynamicMode, enableOptionalEffects,
-                                                                     maxSphericalHarmonicsDegree, customVertexVars);
+            maxSphericalHarmonicsDegree, customVertexVars);
         vertexShaderSource += SplatMaterial2D.buildVertexShaderProjection();
         const fragmentShaderSource = SplatMaterial2D.buildFragmentShader();
 
         const uniforms = SplatMaterial.getUniforms(dynamicMode, enableOptionalEffects,
-                                                   maxSphericalHarmonicsDegree, splatScale, pointCloudModeEnabled);
+            maxSphericalHarmonicsDegree, splatScale, pointCloudModeEnabled);
 
         uniforms['scaleRotationsTexture'] = {
             'type': 't',
@@ -8931,7 +8939,7 @@ class SplatGeometry {
 class SplatScene extends THREE.Object3D {
 
     constructor(splatBuffer, position = new THREE.Vector3(), quaternion = new THREE.Quaternion(),
-                scale = new THREE.Vector3(1, 1, 1), minimumAlpha = 1, opacity = 1.0, visible = true) {
+        scale = new THREE.Vector3(1, 1, 1), minimumAlpha = 1, opacity = 1.0, visible = true) {
         super();
         this.splatBuffer = splatBuffer;
         this.position.copy(position);
@@ -9051,8 +9059,8 @@ function createSplatTreeWorker(self) {
 
         containsPoint(point) {
             return point[0] >= this.min[0] && point[0] <= this.max[0] &&
-                   point[1] >= this.min[1] && point[1] <= this.max[1] &&
-                   point[2] >= this.min[2] && point[2] <= this.max[2];
+                point[1] >= this.min[1] && point[1] <= this.max[1] &&
+                point[2] >= this.min[2] && point[2] <= this.max[2];
         }
     }
 
@@ -9079,8 +9087,8 @@ function createSplatTreeWorker(self) {
             this.min = [min[0], min[1], min[2]];
             this.max = [max[0], max[1], max[2]];
             this.center = [(max[0] - min[0]) * 0.5 + min[0],
-                           (max[1] - min[1]) * 0.5 + min[1],
-                           (max[2] - min[2]) * 0.5 + min[2]];
+            (max[1] - min[1]) * 0.5 + min[1],
+            (max[2] - min[2]) * 0.5 + min[2]];
             this.depth = depth;
             this.children = [];
             this.data = null;
@@ -9089,7 +9097,7 @@ function createSplatTreeWorker(self) {
 
     }
 
-    processSplatTreeNode = function(tree, node, indexToCenter, sceneCenters) {
+    processSplatTreeNode = function (tree, node, indexToCenter, sceneCenters) {
         const splatCount = node.data.indexes.length;
 
         if (splatCount < tree.maxCentersPerNode || node.depth > tree.maxDepth) {
@@ -9110,35 +9118,35 @@ function createSplatTreeWorker(self) {
         }
 
         const nodeDimensions = [node.max[0] - node.min[0],
-                                node.max[1] - node.min[1],
-                                node.max[2] - node.min[2]];
+        node.max[1] - node.min[1],
+        node.max[2] - node.min[2]];
         const halfDimensions = [nodeDimensions[0] * 0.5,
-                                nodeDimensions[1] * 0.5,
-                                nodeDimensions[2] * 0.5];
+        nodeDimensions[1] * 0.5,
+        nodeDimensions[2] * 0.5];
         const nodeCenter = [node.min[0] + halfDimensions[0],
-                            node.min[1] + halfDimensions[1],
-                            node.min[2] + halfDimensions[2]];
+        node.min[1] + halfDimensions[1],
+        node.min[2] + halfDimensions[2]];
 
         const childrenBounds = [
             // top section, clockwise from upper-left (looking from above, +Y)
             new WorkerBox3([nodeCenter[0] - halfDimensions[0], nodeCenter[1], nodeCenter[2] - halfDimensions[2]],
-                           [nodeCenter[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2]]),
+                [nodeCenter[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2]]),
             new WorkerBox3([nodeCenter[0], nodeCenter[1], nodeCenter[2] - halfDimensions[2]],
-                           [nodeCenter[0] + halfDimensions[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2]]),
+                [nodeCenter[0] + halfDimensions[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2]]),
             new WorkerBox3([nodeCenter[0], nodeCenter[1], nodeCenter[2]],
-                           [nodeCenter[0] + halfDimensions[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2] + halfDimensions[2]]),
+                [nodeCenter[0] + halfDimensions[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2] + halfDimensions[2]]),
             new WorkerBox3([nodeCenter[0] - halfDimensions[0], nodeCenter[1], nodeCenter[2]],
-                           [nodeCenter[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2] + halfDimensions[2]]),
+                [nodeCenter[0], nodeCenter[1] + halfDimensions[1], nodeCenter[2] + halfDimensions[2]]),
 
             // bottom section, clockwise from lower-left (looking from above, +Y)
             new WorkerBox3([nodeCenter[0] - halfDimensions[0], nodeCenter[1] - halfDimensions[1], nodeCenter[2] - halfDimensions[2]],
-                           [nodeCenter[0], nodeCenter[1], nodeCenter[2]]),
+                [nodeCenter[0], nodeCenter[1], nodeCenter[2]]),
             new WorkerBox3([nodeCenter[0], nodeCenter[1] - halfDimensions[1], nodeCenter[2] - halfDimensions[2]],
-                           [nodeCenter[0] + halfDimensions[0], nodeCenter[1], nodeCenter[2]]),
+                [nodeCenter[0] + halfDimensions[0], nodeCenter[1], nodeCenter[2]]),
             new WorkerBox3([nodeCenter[0], nodeCenter[1] - halfDimensions[1], nodeCenter[2]],
-                           [nodeCenter[0] + halfDimensions[0], nodeCenter[1], nodeCenter[2] + halfDimensions[2]]),
+                [nodeCenter[0] + halfDimensions[0], nodeCenter[1], nodeCenter[2] + halfDimensions[2]]),
             new WorkerBox3([nodeCenter[0] - halfDimensions[0], nodeCenter[1] - halfDimensions[1], nodeCenter[2]],
-                           [nodeCenter[0], nodeCenter[1], nodeCenter[2] + halfDimensions[2]]),
+                [nodeCenter[0], nodeCenter[1], nodeCenter[2] + halfDimensions[2]]),
         ];
 
         const splatCounts = [];
@@ -9184,7 +9192,7 @@ function createSplatTreeWorker(self) {
         const sceneMax = [0, 0, 0];
         const indexes = [];
         const centerCount = Math.floor(sceneCenters.length / 4);
-        for ( let i = 0; i < centerCount; i ++) {
+        for (let i = 0; i < centerCount; i++) {
             const base = i * 4;
             const x = sceneCenters[base];
             const y = sceneCenters[base + 1];
@@ -9213,7 +9221,7 @@ function createSplatTreeWorker(self) {
         const indexToCenter = [];
         for (let sceneCenters of allCenters) {
             const centerCount = Math.floor(sceneCenters.length / 4);
-            for ( let i = 0; i < centerCount; i ++) {
+            for (let i = 0; i < centerCount; i++) {
                 const base = i * 4;
                 const index = Math.round(sceneCenters[base + 3]);
                 indexToCenter[index] = base;
@@ -9292,7 +9300,7 @@ class SplatTree {
      *                                           the format produced by the splat tree builder worker starts and ends.
      * @return {undefined}
      */
-    processSplatMesh = function(splatMesh, filterFunc = () => true, onIndexesUpload, onSplatTreeConstruction) {
+    processSplatMesh = function (splatMesh, filterFunc = () => true, onIndexesUpload, onSplatTreeConstruction) {
         if (!this.splatTreeWorker) this.splatTreeWorker = checkAndCreateWorker();
 
         this.splatMesh = splatMesh;
@@ -9416,13 +9424,13 @@ class SplatTree {
 
 }
 
-function WebGLExtensions( gl ) {
+function WebGLExtensions(gl) {
 
     const extensions = {};
 
-    function getExtension( name ) {
+    function getExtension(name) {
 
-        if ( extensions[name] !== undefined ) {
+        if (extensions[name] !== undefined) {
 
             return extensions[name];
 
@@ -9430,32 +9438,32 @@ function WebGLExtensions( gl ) {
 
         let extension;
 
-        switch ( name ) {
+        switch (name) {
 
             case 'WEBGL_depth_texture':
-                extension = gl.getExtension( 'WEBGL_depth_texture' ) || gl.getExtension( 'MOZ_WEBGL_depth_texture' ) ||
-                            gl.getExtension( 'WEBKIT_WEBGL_depth_texture' );
+                extension = gl.getExtension('WEBGL_depth_texture') || gl.getExtension('MOZ_WEBGL_depth_texture') ||
+                    gl.getExtension('WEBKIT_WEBGL_depth_texture');
                 break;
 
             case 'EXT_texture_filter_anisotropic':
-                extension = gl.getExtension( 'EXT_texture_filter_anisotropic' ) ||
-                            gl.getExtension( 'MOZ_EXT_texture_filter_anisotropic' ) ||
-                            gl.getExtension( 'WEBKIT_EXT_texture_filter_anisotropic' );
+                extension = gl.getExtension('EXT_texture_filter_anisotropic') ||
+                    gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
+                    gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
                 break;
 
             case 'WEBGL_compressed_texture_s3tc':
-                extension = gl.getExtension( 'WEBGL_compressed_texture_s3tc' ) ||
-                            gl.getExtension( 'MOZ_WEBGL_compressed_texture_s3tc' ) ||
-                            gl.getExtension( 'WEBKIT_WEBGL_compressed_texture_s3tc' );
+                extension = gl.getExtension('WEBGL_compressed_texture_s3tc') ||
+                    gl.getExtension('MOZ_WEBGL_compressed_texture_s3tc') ||
+                    gl.getExtension('WEBKIT_WEBGL_compressed_texture_s3tc');
                 break;
 
             case 'WEBGL_compressed_texture_pvrtc':
-                extension = gl.getExtension( 'WEBGL_compressed_texture_pvrtc' ) ||
-                           gl.getExtension( 'WEBKIT_WEBGL_compressed_texture_pvrtc' );
+                extension = gl.getExtension('WEBGL_compressed_texture_pvrtc') ||
+                    gl.getExtension('WEBKIT_WEBGL_compressed_texture_pvrtc');
                 break;
 
             default:
-                extension = gl.getExtension( name );
+                extension = gl.getExtension(name);
 
         }
 
@@ -9467,45 +9475,45 @@ function WebGLExtensions( gl ) {
 
     return {
 
-        has: function( name ) {
+        has: function (name) {
 
-            return getExtension( name ) !== null;
+            return getExtension(name) !== null;
 
         },
 
-        init: function( capabilities ) {
+        init: function (capabilities) {
 
-            if ( capabilities.isWebGL2 ) {
+            if (capabilities.isWebGL2) {
 
-                getExtension( 'EXT_color_buffer_float' );
-                getExtension( 'WEBGL_clip_cull_distance' );
+                getExtension('EXT_color_buffer_float');
+                getExtension('WEBGL_clip_cull_distance');
 
             } else {
 
-                getExtension( 'WEBGL_depth_texture' );
-                getExtension( 'OES_texture_float' );
-                getExtension( 'OES_texture_half_float' );
-                getExtension( 'OES_texture_half_float_linear' );
-                getExtension( 'OES_standard_derivatives' );
-                getExtension( 'OES_element_index_uint' );
-                getExtension( 'OES_vertex_array_object' );
-                getExtension( 'ANGLE_instanced_arrays' );
+                getExtension('WEBGL_depth_texture');
+                getExtension('OES_texture_float');
+                getExtension('OES_texture_half_float');
+                getExtension('OES_texture_half_float_linear');
+                getExtension('OES_standard_derivatives');
+                getExtension('OES_element_index_uint');
+                getExtension('OES_vertex_array_object');
+                getExtension('ANGLE_instanced_arrays');
 
             }
 
-            getExtension( 'OES_texture_float_linear' );
-            getExtension( 'EXT_color_buffer_half_float' );
-            getExtension( 'WEBGL_multisampled_render_to_texture' );
+            getExtension('OES_texture_float_linear');
+            getExtension('EXT_color_buffer_half_float');
+            getExtension('WEBGL_multisampled_render_to_texture');
 
         },
 
-        get: function( name ) {
+        get: function (name) {
 
-            const extension = getExtension( name );
+            const extension = getExtension(name);
 
-            if ( extension === null ) {
+            if (extension === null) {
 
-                console.warn( 'THREE.WebGLRenderer: ' + name + ' extension not supported.' );
+                console.warn('THREE.WebGLRenderer: ' + name + ' extension not supported.');
 
             }
 
@@ -9517,19 +9525,19 @@ function WebGLExtensions( gl ) {
 
 }
 
-function WebGLCapabilities( gl, extensions, parameters ) {
+function WebGLCapabilities(gl, extensions, parameters) {
 
     let maxAnisotropy;
 
     function getMaxAnisotropy() {
 
-        if ( maxAnisotropy !== undefined ) return maxAnisotropy;
+        if (maxAnisotropy !== undefined) return maxAnisotropy;
 
-        if ( extensions.has( 'EXT_texture_filter_anisotropic' ) === true ) {
+        if (extensions.has('EXT_texture_filter_anisotropic') === true) {
 
-            const extension = extensions.get( 'EXT_texture_filter_anisotropic' );
+            const extension = extensions.get('EXT_texture_filter_anisotropic');
 
-            maxAnisotropy = gl.getParameter( extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT );
+            maxAnisotropy = gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
 
         } else {
 
@@ -9541,12 +9549,12 @@ function WebGLCapabilities( gl, extensions, parameters ) {
 
     }
 
-    function getMaxPrecision( precision ) {
+    function getMaxPrecision(precision) {
 
-        if ( precision === 'highp' ) {
+        if (precision === 'highp') {
 
-            if ( gl.getShaderPrecisionFormat( gl.VERTEX_SHADER, gl.HIGH_FLOAT ).precision > 0 &&
-                gl.getShaderPrecisionFormat( gl.FRAGMENT_SHADER, gl.HIGH_FLOAT ).precision > 0 ) {
+            if (gl.getShaderPrecisionFormat(gl.VERTEX_SHADER, gl.HIGH_FLOAT).precision > 0 &&
+                gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT).precision > 0) {
 
                 return 'highp';
 
@@ -9556,10 +9564,10 @@ function WebGLCapabilities( gl, extensions, parameters ) {
 
         }
 
-        if ( precision === 'mediump' ) {
+        if (precision === 'mediump') {
 
-            if ( gl.getShaderPrecisionFormat( gl.VERTEX_SHADER, gl.MEDIUM_FLOAT ).precision > 0 &&
-                gl.getShaderPrecisionFormat( gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT ).precision > 0 ) {
+            if (gl.getShaderPrecisionFormat(gl.VERTEX_SHADER, gl.MEDIUM_FLOAT).precision > 0 &&
+                gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT).precision > 0) {
 
                 return 'mediump';
 
@@ -9574,34 +9582,34 @@ function WebGLCapabilities( gl, extensions, parameters ) {
     const isWebGL2 = typeof WebGL2RenderingContext !== 'undefined' && gl.constructor.name === 'WebGL2RenderingContext';
 
     let precision = parameters.precision !== undefined ? parameters.precision : 'highp';
-    const maxPrecision = getMaxPrecision( precision );
+    const maxPrecision = getMaxPrecision(precision);
 
-    if ( maxPrecision !== precision ) {
+    if (maxPrecision !== precision) {
 
-        console.warn( 'THREE.WebGLRenderer:', precision, 'not supported, using', maxPrecision, 'instead.' );
+        console.warn('THREE.WebGLRenderer:', precision, 'not supported, using', maxPrecision, 'instead.');
         precision = maxPrecision;
 
     }
 
-    const drawBuffers = isWebGL2 || extensions.has( 'WEBGL_draw_buffers' );
+    const drawBuffers = isWebGL2 || extensions.has('WEBGL_draw_buffers');
 
     const logarithmicDepthBuffer = parameters.logarithmicDepthBuffer === true;
 
-    const maxTextures = gl.getParameter( gl.MAX_TEXTURE_IMAGE_UNITS );
-    const maxVertexTextures = gl.getParameter( gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS );
-    const maxTextureSize = gl.getParameter( gl.MAX_TEXTURE_SIZE );
-    const maxCubemapSize = gl.getParameter( gl.MAX_CUBE_MAP_TEXTURE_SIZE );
+    const maxTextures = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+    const maxVertexTextures = gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS);
+    const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    const maxCubemapSize = gl.getParameter(gl.MAX_CUBE_MAP_TEXTURE_SIZE);
 
-    const maxAttributes = gl.getParameter( gl.MAX_VERTEX_ATTRIBS );
-    const maxVertexUniforms = gl.getParameter( gl.MAX_VERTEX_UNIFORM_VECTORS );
-    const maxVaryings = gl.getParameter( gl.MAX_VARYING_VECTORS );
-    const maxFragmentUniforms = gl.getParameter( gl.MAX_FRAGMENT_UNIFORM_VECTORS );
+    const maxAttributes = gl.getParameter(gl.MAX_VERTEX_ATTRIBS);
+    const maxVertexUniforms = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
+    const maxVaryings = gl.getParameter(gl.MAX_VARYING_VECTORS);
+    const maxFragmentUniforms = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS);
 
     const vertexTextures = maxVertexTextures > 0;
-    const floatFragmentTextures = isWebGL2 || extensions.has( 'OES_texture_float' );
+    const floatFragmentTextures = isWebGL2 || extensions.has('OES_texture_float');
     const floatVertexTextures = vertexTextures && floatFragmentTextures;
 
-    const maxSamples = isWebGL2 ? gl.getParameter( gl.MAX_SAMPLES ) : 0;
+    const maxSamples = isWebGL2 ? gl.getParameter(gl.MAX_SAMPLES) : 0;
 
     return {
 
@@ -9683,9 +9691,9 @@ const MAX_TEXTURE_TEXELS = 16777216;
 class SplatMesh extends THREE.Mesh {
 
     constructor(splatRenderMode = SplatRenderMode.ThreeD, dynamicMode = false, enableOptionalEffects = false,
-                halfPrecisionCovariancesOnGPU = false, devicePixelRatio = 1, enableDistancesComputationOnGPU = true,
-                integerBasedDistancesComputation = false, antialiased = false, maxScreenSpaceSplatSize = 1024, logLevel = LogLevel.None,
-                sphericalHarmonicsDegree = 0, sceneFadeInRateMultiplier = 1.0, kernel2DSize = 0.3) {
+        halfPrecisionCovariancesOnGPU = false, devicePixelRatio = 1, enableDistancesComputationOnGPU = true,
+        integerBasedDistancesComputation = false, antialiased = false, maxScreenSpaceSplatSize = 1024, logLevel = LogLevel.None,
+        sphericalHarmonicsDegree = 0, sceneFadeInRateMultiplier = 1.0, kernel2DSize = 0.3) {
         super(dummyGeometry, dummyMaterial);
 
         // Reference to a Three.js renderer
@@ -9819,7 +9827,7 @@ class SplatMesh extends THREE.Mesh {
             const rotation = new THREE.Quaternion().fromArray(rotationArray);
             const scale = new THREE.Vector3().fromArray(scaleArray);
             const scene = SplatMesh.createScene(splatBuffer, position, rotation, scale,
-                                                options.splatAlphaRemovalThreshold || 1, options.opacity, options.visible);
+                options.splatAlphaRemovalThreshold || 1, options.opacity, options.visible);
             parentObject.add(scene);
             scenes[i] = scene;
         }
@@ -9864,7 +9872,7 @@ class SplatMesh extends THREE.Mesh {
      *                                           the format produced by the splat tree builder worker starts and ends.
      * @return {SplatTree}
      */
-     buildSplatTree = function(minAlphas = [], onSplatTreeIndexesUpload, onSplatTreeConstruction) {
+    buildSplatTree = function (minAlphas = [], onSplatTreeIndexesUpload, onSplatTreeConstruction) {
         return new Promise((resolve) => {
             this.disposeSplatTree();
             // TODO: expose SplatTree constructor parameters (maximumDepth and maxCentersPerNode) so that they can
@@ -9878,40 +9886,40 @@ class SplatMesh extends THREE.Mesh {
                 const minAlpha = minAlphas[sceneIndex] || 1;
                 return splatColor.w >= minAlpha;
             }, onSplatTreeIndexesUpload, onSplatTreeConstruction)
-            .then(() => {
-                const buildTime = performance.now() - buildStartTime;
-                if (this.logLevel >= LogLevel.Info) console.log('SplatTree build: ' + buildTime + ' ms');
-                if (this.disposed) {
-                    resolve();
-                } else {
+                .then(() => {
+                    const buildTime = performance.now() - buildStartTime;
+                    if (this.logLevel >= LogLevel.Info) console.log('SplatTree build: ' + buildTime + ' ms');
+                    if (this.disposed) {
+                        resolve();
+                    } else {
 
-                    this.splatTree = this.baseSplatTree;
-                    this.baseSplatTree = null;
+                        this.splatTree = this.baseSplatTree;
+                        this.baseSplatTree = null;
 
-                    let leavesWithVertices = 0;
-                    let avgSplatCount = 0;
-                    let maxSplatCount = 0;
-                    let nodeCount = 0;
+                        let leavesWithVertices = 0;
+                        let avgSplatCount = 0;
+                        let maxSplatCount = 0;
+                        let nodeCount = 0;
 
-                    this.splatTree.visitLeaves((node) => {
-                        const nodeSplatCount = node.data.indexes.length;
-                        if (nodeSplatCount > 0) {
-                            avgSplatCount += nodeSplatCount;
-                            maxSplatCount = Math.max(maxSplatCount, nodeSplatCount);
-                            nodeCount++;
-                            leavesWithVertices++;
+                        this.splatTree.visitLeaves((node) => {
+                            const nodeSplatCount = node.data.indexes.length;
+                            if (nodeSplatCount > 0) {
+                                avgSplatCount += nodeSplatCount;
+                                maxSplatCount = Math.max(maxSplatCount, nodeSplatCount);
+                                nodeCount++;
+                                leavesWithVertices++;
+                            }
+                        });
+                        if (this.logLevel >= LogLevel.Info) {
+                            console.log(`SplatTree leaves: ${this.splatTree.countLeaves()}`);
+                            console.log(`SplatTree leaves with splats:${leavesWithVertices}`);
+                            avgSplatCount = avgSplatCount / nodeCount;
+                            console.log(`Avg splat count per node: ${avgSplatCount}`);
+                            console.log(`Total splat count: ${this.getSplatCount()}`);
                         }
-                    });
-                    if (this.logLevel >= LogLevel.Info) {
-                        console.log(`SplatTree leaves: ${this.splatTree.countLeaves()}`);
-                        console.log(`SplatTree leaves with splats:${leavesWithVertices}`);
-                        avgSplatCount = avgSplatCount / nodeCount;
-                        console.log(`Avg splat count per node: ${avgSplatCount}`);
-                        console.log(`Total splat count: ${this.getSplatCount()}`);
+                        resolve();
                     }
-                    resolve();
-                }
-            });
+                });
         });
     };
 
@@ -9940,7 +9948,7 @@ class SplatMesh extends THREE.Mesh {
      * @return {object} Object containing info about the splats that are updated
      */
     build(splatBuffers, sceneOptions, keepSceneTransforms = true, finalBuild = false,
-          onSplatTreeIndexesUpload, onSplatTreeConstruction, preserveVisibleRegion = true) {
+        onSplatTreeIndexesUpload, onSplatTreeConstruction, preserveVisibleRegion = true) {
 
         this.sceneOptions = sceneOptions;
         this.finalBuild = finalBuild;
@@ -9984,10 +9992,10 @@ class SplatMesh extends THREE.Mesh {
             this.lastBuildSceneCount !== this.scenes.length ||
             this.lastBuildMaxSplatCount !== maxSplatCount ||
             splatBuffersChanged) {
-                isUpdateBuild = false;
-       }
+            isUpdateBuild = false;
+        }
 
-       if (!isUpdateBuild) {
+        if (!isUpdateBuild) {
             this.boundingBox = new THREE.Box3();
             if (!preserveVisibleRegion) {
                 this.maxSplatDistanceFromSceneCenter = 0;
@@ -10003,11 +10011,11 @@ class SplatMesh extends THREE.Mesh {
             this.geometry = SplatGeometry.build(maxSplatCount);
             if (this.splatRenderMode === SplatRenderMode.ThreeD) {
                 this.material = SplatMaterial3D.build(this.dynamicMode, this.enableOptionalEffects, this.antialiased,
-                                                      this.maxScreenSpaceSplatSize, this.splatScale, this.pointCloudModeEnabled,
-                                                      this.minSphericalHarmonicsDegree, this.kernel2DSize);
+                    this.maxScreenSpaceSplatSize, this.splatScale, this.pointCloudModeEnabled,
+                    this.minSphericalHarmonicsDegree, this.kernel2DSize);
             } else {
                 this.material = SplatMaterial2D.build(this.dynamicMode, this.enableOptionalEffects,
-                                                      this.splatScale, this.pointCloudModeEnabled, this.minSphericalHarmonicsDegree);
+                    this.splatScale, this.pointCloudModeEnabled, this.minSphericalHarmonicsDegree);
             }
 
             const indexMaps = SplatMesh.buildSplatIndexMaps(splatBuffers);
@@ -10028,11 +10036,11 @@ class SplatMesh extends THREE.Mesh {
 
         if (finalBuild && this.scenes.length > 0) {
             this.buildSplatTree(sceneOptions.map(options => options.splatAlphaRemovalThreshold || 1),
-                                onSplatTreeIndexesUpload, onSplatTreeConstruction)
-            .then(() => {
-                if (this.onSplatTreeReadyCallback) this.onSplatTreeReadyCallback(this.splatTree);
-                this.onSplatTreeReadyCallback = null;
-            });
+                onSplatTreeIndexesUpload, onSplatTreeConstruction)
+                .then(() => {
+                    if (this.onSplatTreeReadyCallback) this.onSplatTreeReadyCallback(this.splatTree);
+                    this.onSplatTreeReadyCallback = null;
+                });
         }
 
         this.visible = (this.scenes.length > 0);
@@ -10207,8 +10215,8 @@ class SplatMesh extends THREE.Mesh {
      */
     getDataForDistancesComputation(start, end) {
         const centers = this.integerBasedDistancesComputation ?
-                        this.getIntegerCenters(start, end, true) :
-                        this.getFloatCenters(start, end, true);
+            this.getIntegerCenters(start, end, true) :
+            this.getFloatCenters(start, end, true);
         const sceneIndexes = this.getSceneIndexes(start, end);
         return {
             centers,
@@ -10289,7 +10297,7 @@ class SplatMesh extends THREE.Mesh {
         const getCovariancesInitialTextureSpecs = (compressionLevel) => {
             const elementsPerTexelStored = getCovariancesElementsPertexelStored(compressionLevel);
             const texSize = computeDataTextureSize(elementsPerTexelStored, 6);
-            return {elementsPerTexelStored, texSize};
+            return { elementsPerTexelStored, texSize };
         };
 
         let covarianceCompressionLevel = this.getTargetCovarianceCompressionLevel();
@@ -10325,7 +10333,7 @@ class SplatMesh extends THREE.Mesh {
         SplatMesh.updateCenterColorsPaddedData(0, splatCount - 1, centers, colors, paddedCentersCols);
 
         const centersColsTex = new THREE.DataTexture(paddedCentersCols, centersColsTexSize.x, centersColsTexSize.y,
-                                                     THREE.RGBAIntegerFormat, THREE.UnsignedIntType);
+            THREE.RGBAIntegerFormat, THREE.UnsignedIntType);
         centersColsTex.internalFormat = 'RGBA32UI';
         centersColsTex.needsUpdate = true;
         this.material.uniforms.centersColorsTexture.value = centersColsTex;
@@ -10357,8 +10365,8 @@ class SplatMesh extends THREE.Mesh {
 
             let CovariancesDataType = covarianceCompressionLevel >= 1 ? Uint32Array : Float32Array;
             const covariancesElementsPerTexelAllocated = covarianceCompressionLevel >= 1 ?
-                                                         COVARIANCES_ELEMENTS_PER_TEXEL_COMPRESSED_ALLOCATED :
-                                                         COVARIANCES_ELEMENTS_PER_TEXEL_ALLOCATED;
+                COVARIANCES_ELEMENTS_PER_TEXEL_COMPRESSED_ALLOCATED :
+                COVARIANCES_ELEMENTS_PER_TEXEL_ALLOCATED;
             const covariancesTextureData = new CovariancesDataType(covTexSize.x * covTexSize.y * covariancesElementsPerTexelAllocated);
 
             if (covarianceCompressionLevel === 0) {
@@ -10370,7 +10378,7 @@ class SplatMesh extends THREE.Mesh {
             let covTex;
             if (covarianceCompressionLevel >= 1) {
                 covTex = new THREE.DataTexture(covariancesTextureData, covTexSize.x, covTexSize.y,
-                                               THREE.RGBAIntegerFormat, THREE.UnsignedIntType);
+                    THREE.RGBAIntegerFormat, THREE.UnsignedIntType);
                 covTex.internalFormat = 'RGBA32UI';
                 this.material.uniforms.covariancesTextureHalfFloat.value = covTex;
             } else {
@@ -10403,12 +10411,12 @@ class SplatMesh extends THREE.Mesh {
             let ScaleRotationsDataType = scaleRotationCompressionLevel >= 1 ? Uint16Array : Float32Array;
             let scaleRotationsTextureType = scaleRotationCompressionLevel >= 1 ? THREE.HalfFloatType : THREE.FloatType;
             const paddedScaleRotations = new ScaleRotationsDataType(scaleRotationsTexSize.x * scaleRotationsTexSize.y *
-                                                                    SCALES_ROTATIONS_ELEMENTS_PER_TEXEL);
+                SCALES_ROTATIONS_ELEMENTS_PER_TEXEL);
 
             SplatMesh.updateScaleRotationsPaddedData(0, splatCount - 1, scales, rotations, paddedScaleRotations);
 
             const scaleRotationsTex = new THREE.DataTexture(paddedScaleRotations, scaleRotationsTexSize.x, scaleRotationsTexSize.y,
-                                                            THREE.RGBAFormat, scaleRotationsTextureType);
+                THREE.RGBAFormat, scaleRotationsTextureType);
             scaleRotationsTex.needsUpdate = true;
             this.material.uniforms.scaleRotationsTexture.value = scaleRotationsTex;
             this.material.uniforms.scaleRotationsTextureSize.value.copy(scaleRotationsTexSize);
@@ -10455,7 +10463,7 @@ class SplatMesh extends THREE.Mesh {
                     'compressionLevel': shCompressionLevel,
                     'elementsPerTexel': shElementsPerTexel
                 };
-            // Use three textures for spherical harmonics data, one per color channel
+                // Use three textures for spherical harmonics data, one per color channel
             } else {
                 const shComponentCountPerChannel = shComponentCount / 3;
                 paddedSHComponentCount = shComponentCountPerChannel;
@@ -10464,8 +10472,8 @@ class SplatMesh extends THREE.Mesh {
 
                 const paddedSHArraySize = shTexSize.x * shTexSize.y * shElementsPerTexel;
                 const textureUniforms = [this.material.uniforms.sphericalHarmonicsTextureR,
-                                         this.material.uniforms.sphericalHarmonicsTextureG,
-                                         this.material.uniforms.sphericalHarmonicsTextureB];
+                this.material.uniforms.sphericalHarmonicsTextureG,
+                this.material.uniforms.sphericalHarmonicsTextureB];
                 const paddedSHArrays = [];
                 const shTextures = [];
                 for (let t = 0; t < 3; t++) {
@@ -10516,10 +10524,10 @@ class SplatMesh extends THREE.Mesh {
 
         const sceneIndexesTexSize = computeDataTextureSize(SCENE_INDEXES_ELEMENTS_PER_TEXEL, 4);
         const paddedTransformIndexes = new Uint32Array(sceneIndexesTexSize.x *
-                                                       sceneIndexesTexSize.y * SCENE_INDEXES_ELEMENTS_PER_TEXEL);
+            sceneIndexesTexSize.y * SCENE_INDEXES_ELEMENTS_PER_TEXEL);
         for (let c = 0; c < splatCount; c++) paddedTransformIndexes[c] = this.globalSplatIndexToSceneIndexMap[c];
         const sceneIndexesTexture = new THREE.DataTexture(paddedTransformIndexes, sceneIndexesTexSize.x, sceneIndexesTexSize.y,
-                                                          THREE.RedIntegerFormat, THREE.UnsignedIntType);
+            THREE.RedIntegerFormat, THREE.UnsignedIntType);
         sceneIndexesTexture.internalFormat = 'R32UI';
         sceneIndexesTexture.needsUpdate = true;
         this.material.uniforms.sceneIndexesTexture.value = sceneIndexesTexture;
@@ -10542,10 +10550,10 @@ class SplatMesh extends THREE.Mesh {
         const shCompressionLevel = shITextureDesc ? shITextureDesc.compressionLevel : 0;
 
         this.fillSplatDataArrays(this.splatDataTextures.baseData.covariances, this.splatDataTextures.baseData.scales,
-                                 this.splatDataTextures.baseData.rotations, this.splatDataTextures.baseData.centers,
-                                 this.splatDataTextures.baseData.colors, this.splatDataTextures.baseData.sphericalHarmonics, undefined,
-                                 covarianceCompressionLevel, scaleRotationCompressionLevel, shCompressionLevel,
-                                 fromSplat, toSplat, fromSplat);
+            this.splatDataTextures.baseData.rotations, this.splatDataTextures.baseData.centers,
+            this.splatDataTextures.baseData.colors, this.splatDataTextures.baseData.sphericalHarmonics, undefined,
+            covarianceCompressionLevel, scaleRotationCompressionLevel, shCompressionLevel,
+            fromSplat, toSplat, fromSplat);
     }
 
     updateDataTexturesFromBaseData(fromSplat, toSplat) {
@@ -10561,14 +10569,14 @@ class SplatMesh extends THREE.Mesh {
         const paddedCenterColors = centerColorsTextureDescriptor.data;
         const centerColorsTexture = centerColorsTextureDescriptor.texture;
         SplatMesh.updateCenterColorsPaddedData(fromSplat, toSplat, this.splatDataTextures.baseData.centers,
-                                               this.splatDataTextures.baseData.colors, paddedCenterColors);
+            this.splatDataTextures.baseData.colors, paddedCenterColors);
         const centerColorsTextureProps = this.renderer ? this.renderer.properties.get(centerColorsTexture) : null;
         if (!centerColorsTextureProps || !centerColorsTextureProps.__webglTexture) {
             centerColorsTexture.needsUpdate = true;
         } else {
             this.updateDataTexture(paddedCenterColors, centerColorsTextureDescriptor.texture, centerColorsTextureDescriptor.size,
-                                   centerColorsTextureProps, CENTER_COLORS_ELEMENTS_PER_TEXEL, CENTER_COLORS_ELEMENTS_PER_SPLAT, 4,
-                                   fromSplat, toSplat);
+                centerColorsTextureProps, CENTER_COLORS_ELEMENTS_PER_TEXEL, CENTER_COLORS_ELEMENTS_PER_SPLAT, 4,
+                fromSplat, toSplat);
         }
 
         // update covariance data texture
@@ -10584,9 +10592,9 @@ class SplatMesh extends THREE.Mesh {
                 }
             } else {
                 SplatMesh.updatePaddedCompressedCovariancesTextureData(this.splatDataTextures.baseData.covariances,
-                                                                       covarancesTextureDesc.data,
-                                                                       fromSplat * covarancesTextureDesc.elementsPerTexelAllocated,
-                                                                       covarancesStartElement, covariancesEndElement);
+                    covarancesTextureDesc.data,
+                    fromSplat * covarancesTextureDesc.elementsPerTexelAllocated,
+                    covarancesStartElement, covariancesEndElement);
             }
 
             const covariancesTextureProps = this.renderer ? this.renderer.properties.get(covariancesTexture) : null;
@@ -10595,12 +10603,12 @@ class SplatMesh extends THREE.Mesh {
             } else {
                 if (covarianceCompressionLevel === 0) {
                     this.updateDataTexture(covarancesTextureDesc.data, covarancesTextureDesc.texture, covarancesTextureDesc.size,
-                                           covariancesTextureProps, covarancesTextureDesc.elementsPerTexelStored,
-                                           COVARIANCES_ELEMENTS_PER_SPLAT, 4, fromSplat, toSplat);
+                        covariancesTextureProps, covarancesTextureDesc.elementsPerTexelStored,
+                        COVARIANCES_ELEMENTS_PER_SPLAT, 4, fromSplat, toSplat);
                 } else {
                     this.updateDataTexture(covarancesTextureDesc.data, covarancesTextureDesc.texture, covarancesTextureDesc.size,
-                                           covariancesTextureProps, covarancesTextureDesc.elementsPerTexelAllocated,
-                                           covarancesTextureDesc.elementsPerTexelAllocated, 2, fromSplat, toSplat);
+                        covariancesTextureProps, covarancesTextureDesc.elementsPerTexelAllocated,
+                        covarancesTextureDesc.elementsPerTexelAllocated, 2, fromSplat, toSplat);
                 }
             }
         }
@@ -10613,14 +10621,14 @@ class SplatMesh extends THREE.Mesh {
             const bytesPerElement = scaleRotationCompressionLevel === 0 ? 4 : 2;
 
             SplatMesh.updateScaleRotationsPaddedData(fromSplat, toSplat, this.splatDataTextures.baseData.scales,
-                                                     this.splatDataTextures.baseData.rotations, paddedScaleRotations);
+                this.splatDataTextures.baseData.rotations, paddedScaleRotations);
             const scaleRotationsTextureProps = this.renderer ? this.renderer.properties.get(scaleRotationsTexture) : null;
             if (!scaleRotationsTextureProps || !scaleRotationsTextureProps.__webglTexture) {
                 scaleRotationsTexture.needsUpdate = true;
             } else {
                 this.updateDataTexture(paddedScaleRotations, scaleRotationsTextureDesc.texture, scaleRotationsTextureDesc.size,
-                                       scaleRotationsTextureProps, SCALES_ROTATIONS_ELEMENTS_PER_TEXEL, elementsPerSplat, bytesPerElement,
-                                       fromSplat, toSplat);
+                    scaleRotationsTextureProps, SCALES_ROTATIONS_ELEMENTS_PER_TEXEL, elementsPerSplat, bytesPerElement,
+                    fromSplat, toSplat);
             }
         }
 
@@ -10637,7 +10645,7 @@ class SplatMesh extends THREE.Mesh {
                     shTexture.needsUpdate = true;
                 } else {
                     this.updateDataTexture(paddedSHArray, shTexture, shTextureSize, shTextureProps, elementsPerTexel,
-                                           paddedSHComponentCount, shBytesPerElement, fromSplat, toSplat);
+                        paddedSHComponentCount, shBytesPerElement, fromSplat, toSplat);
                 }
             };
 
@@ -10655,8 +10663,8 @@ class SplatMesh extends THREE.Mesh {
                     }
                 }
                 updateTexture(shTextureDesc.texture, shTextureDesc.size,
-                              shTextureDesc.elementsPerTexel, paddedSHArray, paddedSHComponentCount);
-            // Update for the case of spherical harmonics data split among three textures, one for each color channel
+                    shTextureDesc.elementsPerTexel, paddedSHArray, paddedSHComponentCount);
+                // Update for the case of spherical harmonics data split among three textures, one for each color channel
             } else {
                 const shComponentCountPerChannel = shTextureDesc.componentCountPerChannel;
                 for (let t = 0; t < 3; t++) {
@@ -10672,7 +10680,7 @@ class SplatMesh extends THREE.Mesh {
                         }
                     }
                     updateTexture(shTextureDesc.textures[t], shTextureDesc.size,
-                                  shTextureDesc.elementsPerTexel, paddedSHArray, paddedSHComponentCount);
+                        shTextureDesc.elementsPerTexel, paddedSHArray, paddedSHComponentCount);
                 }
             }
         }
@@ -10689,7 +10697,7 @@ class SplatMesh extends THREE.Mesh {
             sceneIndexesTexture.needsUpdate = true;
         } else {
             this.updateDataTexture(paddedSceneIndexes, sceneIndexesTexDesc.texture, sceneIndexesTexDesc.size,
-                                   sceneIndexesTextureProps, 1, 1, 1, this.lastBuildSplatCount, toSplat);
+                sceneIndexesTextureProps, 1, 1, 1, this.lastBuildSplatCount, toSplat);
         }
     }
 
@@ -10749,14 +10757,14 @@ class SplatMesh extends THREE.Mesh {
         const updateRegion = SplatMesh.computeTextureUpdateRegion(from, to, textureSize.x, elementsPerTexel, elementsPerSplat);
         const updateElementCount = updateRegion.dataEnd - updateRegion.dataStart;
         const updateDataView = new paddedData.constructor(paddedData.buffer,
-                                                          updateRegion.dataStart * bytesPerElement, updateElementCount);
+            updateRegion.dataStart * bytesPerElement, updateElementCount);
         const updateHeight = updateRegion.endRow - updateRegion.startRow + 1;
         const glType = this.webGLUtils.convert(texture.type);
         const glFormat = this.webGLUtils.convert(texture.format, texture.colorSpace);
         const currentTexture = gl.getParameter(gl.TEXTURE_BINDING_2D);
         gl.bindTexture(gl.TEXTURE_2D, textureProps.__webglTexture);
         gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, updateRegion.startRow,
-                         textureSize.x, updateHeight, glFormat, glType, updateDataView);
+            textureSize.x, updateHeight, glFormat, glType, updateDataView);
         gl.bindTexture(gl.TEXTURE_2D, currentTexture);
     }
 
@@ -10764,7 +10772,7 @@ class SplatMesh extends THREE.Mesh {
         let textureDataView = new DataView(textureData.buffer);
         let textureDataIndex = textureDataStartIndex;
         let sequentialCount = 0;
-        for (let i = fromElement; i <= toElement; i+=2) {
+        for (let i = fromElement; i <= toElement; i += 2) {
             textureDataView.setUint16(textureDataIndex * 2, sourceData[i], true);
             textureDataView.setUint16(textureDataIndex * 2 + 2, sourceData[i + 1], true);
             textureDataIndex += 2;
@@ -10840,9 +10848,9 @@ class SplatMesh extends THREE.Mesh {
         const defaultFadeInRate = this.finalBuild ? fastFadeRate : gradualFadeRate;
         const fadeInRate = sceneRevealMode === SceneRevealMode.Default ? defaultFadeInRate : gradualFadeRate;
         this.visibleRegionFadeStartRadius = (this.visibleRegionRadius - this.visibleRegionFadeStartRadius) *
-                                             fadeInRate + this.visibleRegionFadeStartRadius;
+            fadeInRate + this.visibleRegionFadeStartRadius;
         const fadeInPercentage = (this.visibleRegionBufferRadius > 0) ?
-                                 (this.visibleRegionFadeStartRadius / this.visibleRegionBufferRadius) : 0;
+            (this.visibleRegionFadeStartRadius / this.visibleRegionBufferRadius) : 0;
         const fadeInComplete = fadeInPercentage > 0.99;
         const shaderFadeInComplete = (fadeInComplete || sceneRevealMode === SceneRevealMode.Instant) ? 1 : 0;
 
@@ -10881,16 +10889,16 @@ class SplatMesh extends THREE.Mesh {
         }
     }
 
-    updateUniforms = function() {
+    updateUniforms = function () {
 
         const viewport = new THREE.Vector2();
 
-        return function(renderDimensions, cameraFocalLengthX, cameraFocalLengthY,
-                        orthographicMode, orthographicZoom, inverseFocalAdjustment) {
+        return function (renderDimensions, cameraFocalLengthX, cameraFocalLengthY,
+            orthographicMode, orthographicZoom, inverseFocalAdjustment) {
             const splatCount = this.getSplatCount();
             if (splatCount > 0) {
                 viewport.set(renderDimensions.x * this.devicePixelRatio,
-                             renderDimensions.y * this.devicePixelRatio);
+                    renderDimensions.y * this.devicePixelRatio);
                 this.material.uniforms.viewport.value.copy(viewport);
                 this.material.uniforms.basisViewport.value.set(1.0 / viewport.x, 1.0 / viewport.y);
                 this.material.uniforms.focal.value.set(cameraFocalLengthX, cameraFocalLengthY);
@@ -11037,11 +11045,11 @@ class SplatMesh extends THREE.Mesh {
         }
     }
 
-    setupDistancesComputationTransformFeedback = function() {
+    setupDistancesComputationTransformFeedback = function () {
 
         let currentMaxSplatCount;
 
-        return function() {
+        return function () {
             const maxSplatCount = this.getMaxSplatCount();
 
             if (!this.renderer) return;
@@ -11086,7 +11094,7 @@ class SplatMesh extends THREE.Mesh {
             let vsSource;
             if (this.integerBasedDistancesComputation) {
                 vsSource =
-                `#version 300 es
+                    `#version 300 es
                 in ivec4 center;
                 flat out int distance;`;
                 if (this.dynamicMode) {
@@ -11108,7 +11116,7 @@ class SplatMesh extends THREE.Mesh {
                 }
             } else {
                 vsSource =
-                `#version 300 es
+                    `#version 300 es
                 in vec4 center;
                 flat out float distance;`;
                 if (this.dynamicMode) {
@@ -11131,7 +11139,7 @@ class SplatMesh extends THREE.Mesh {
             }
 
             const fsSource =
-            `#version 300 es
+                `#version 300 es
                 precision lowp float;
                 out vec4 fragColor;
                 void main(){}
@@ -11316,11 +11324,11 @@ class SplatMesh extends THREE.Mesh {
      * Fill 'array' with the transforms for each scene in this splat mesh.
      * @param {Array} array Empty array to be filled with scene transforms. If not empty, contents will be overwritten.
      */
-    fillTransformsArray = function() {
+    fillTransformsArray = function () {
 
         const tempArray = [];
 
-        return function(array) {
+        return function (array) {
             if (tempArray.length !== array.length) tempArray.length = array.length;
             for (let i = 0; i < this.scenes.length; i++) {
                 const sceneTransform = this.getScene(i).transform;
@@ -11334,11 +11342,11 @@ class SplatMesh extends THREE.Mesh {
 
     }();
 
-    computeDistancesOnGPU = function() {
+    computeDistancesOnGPU = function () {
 
         const tempMatrix = new THREE.Matrix4();
 
-        return function(modelViewProjMatrix, outComputedDistances) {
+        return function (modelViewProjMatrix, outComputedDistances) {
             if (!this.renderer) return;
 
             // console.time("gpu_compute_distances");
@@ -11362,7 +11370,7 @@ class SplatMesh extends THREE.Mesh {
                         const iTempMatrix = SplatMesh.getIntegerMatrixArray(tempMatrix);
                         const iTransform = [iTempMatrix[2], iTempMatrix[6], iTempMatrix[10], iTempMatrix[14]];
                         gl.uniform4i(this.distancesTransformFeedback.transformsLocs[i], iTransform[0], iTransform[1],
-                                                                                        iTransform[2], iTransform[3]);
+                            iTransform[2], iTransform[3]);
                     } else {
                         gl.uniformMatrix4fv(this.distancesTransformFeedback.transformsLocs[i], false, tempMatrix.elements);
                     }
@@ -11487,8 +11495,8 @@ class SplatMesh extends THREE.Mesh {
      * @param {number} destStart The start location from which to write data
      */
     fillSplatDataArrays(covariances, scales, rotations, centers, colors, sphericalHarmonics, applySceneTransform,
-                        covarianceCompressionLevel = 0, scaleRotationCompressionLevel = 0, sphericalHarmonicsCompressionLevel = 1,
-                        srcStart, srcEnd, destStart = 0, sceneIndex) {
+        covarianceCompressionLevel = 0, scaleRotationCompressionLevel = 0, sphericalHarmonicsCompressionLevel = 1,
+        srcStart, srcEnd, destStart = 0, sceneIndex) {
         const scaleOverride = new THREE.Vector3();
         scaleOverride.x = undefined;
         scaleOverride.y = undefined;
@@ -11525,13 +11533,13 @@ class SplatMesh extends THREE.Mesh {
                     throw new Error('SplatMesh::fillSplatDataArrays() -> "scales" and "rotations" must both be valid.');
                 }
                 splatBuffer.fillSplatScaleRotationArray(scales, rotations, sceneTransform,
-                                                        srcStart, srcEnd, destStart, scaleRotationCompressionLevel, scaleOverride);
+                    srcStart, srcEnd, destStart, scaleRotationCompressionLevel, scaleOverride);
             }
             if (centers) splatBuffer.fillSplatCenterArray(centers, sceneTransform, srcStart, srcEnd, destStart);
             if (colors) splatBuffer.fillSplatColorArray(colors, scene.minimumAlpha, srcStart, srcEnd, destStart);
             if (sphericalHarmonics) {
                 splatBuffer.fillSphericalHarmonicsArray(sphericalHarmonics, this.minSphericalHarmonicsDegree,
-                                                        sceneTransform, srcStart, srcEnd, destStart, sphericalHarmonicsCompressionLevel);
+                    sceneTransform, srcStart, srcEnd, destStart, sphericalHarmonicsCompressionLevel);
             }
             destStart += splatBuffer.getSplatCount();
         }
@@ -11592,11 +11600,11 @@ class SplatMesh extends THREE.Mesh {
      *                                      the scene transform will always be applied and if 'applySceneTransform' is false, the
      *                                      scene transform will never be applied. If undefined, the default behavior will apply.
      */
-    getSplatCenter = function() {
+    getSplatCenter = function () {
 
         const paramsObj = {};
 
-        return function(globalIndex, outCenter, applySceneTransform) {
+        return function (globalIndex, outCenter, applySceneTransform) {
             this.getLocalSplatParameters(globalIndex, paramsObj, applySceneTransform);
             paramsObj.splatBuffer.getSplatCenter(paramsObj.localIndex, outCenter, paramsObj.sceneTransform);
         };
@@ -11614,19 +11622,19 @@ class SplatMesh extends THREE.Mesh {
      *                                      'applySceneTransform' is false, the scene transform will never be applied. If undefined,
      *                                      the default behavior will apply.
      */
-    getSplatScaleAndRotation = function() {
+    getSplatScaleAndRotation = function () {
 
         const paramsObj = {};
         const scaleOverride = new THREE.Vector3();
 
-        return function(globalIndex, outScale, outRotation, applySceneTransform) {
+        return function (globalIndex, outScale, outRotation, applySceneTransform) {
             this.getLocalSplatParameters(globalIndex, paramsObj, applySceneTransform);
             scaleOverride.x = undefined;
             scaleOverride.y = undefined;
             scaleOverride.z = undefined;
             if (this.splatRenderMode === SplatRenderMode.TwoD) scaleOverride.z = 0;
             paramsObj.splatBuffer.getSplatScaleAndRotation(paramsObj.localIndex, outScale, outRotation,
-                                                           paramsObj.sceneTransform, scaleOverride);
+                paramsObj.sceneTransform, scaleOverride);
         };
 
     }();
@@ -11636,11 +11644,11 @@ class SplatMesh extends THREE.Mesh {
      * @param {number} globalIndex Global index of splat
      * @param {THREE.Vector4} outColor THREE.Vector4 instance in which to store splat color
      */
-    getSplatColor = function() {
+    getSplatColor = function () {
 
         const paramsObj = {};
 
-        return function(globalIndex, outColor) {
+        return function (globalIndex, outColor) {
             this.getLocalSplatParameters(globalIndex, paramsObj);
             paramsObj.splatBuffer.getSplatColor(paramsObj.localIndex, outColor);
         };
@@ -11710,7 +11718,7 @@ class SplatMesh extends THREE.Mesh {
 
         const floatCenters = new Float32Array(splatCount * 3);
         this.fillSplatDataArrays(null, null, null, floatCenters, null, null, applySceneTransforms,
-                                 undefined, undefined, undefined, undefined, sceneIndex);
+            undefined, undefined, undefined, undefined, sceneIndex);
 
         const min = new THREE.Vector3();
         const max = new THREE.Vector3();
@@ -11763,7 +11771,7 @@ function sortWorker(self) {
     let Constants;
 
     function sort(splatSortCount, splatRenderCount, modelViewProj,
-                  usePrecomputedDistances, copyIndexesToSort, copyPrecomputedDistances, copyTransforms) {
+        usePrecomputedDistances, copyIndexesToSort, copyPrecomputedDistances, copyTransforms) {
         const sortStartTime = performance.now();
 
         if (!useSharedMemory) {
@@ -11775,10 +11783,10 @@ function sortWorker(self) {
                 let precomputedDistances;
                 if (integerBasedSort) {
                     precomputedDistances = new Int32Array(wasmMemory, precomputedDistancesOffset,
-                                                          copyPrecomputedDistances.byteLength / Constants.BytesPerInt);
+                        copyPrecomputedDistances.byteLength / Constants.BytesPerInt);
                 } else {
                     precomputedDistances = new Float32Array(wasmMemory, precomputedDistancesOffset,
-                                                            copyPrecomputedDistances.byteLength / Constants.BytesPerFloat);
+                        copyPrecomputedDistances.byteLength / Constants.BytesPerFloat);
                 }
                 precomputedDistances.set(copyPrecomputedDistances);
             }
@@ -11788,10 +11796,10 @@ function sortWorker(self) {
         new Float32Array(wasmMemory, modelViewProjOffset, 16).set(modelViewProj);
         new Uint32Array(wasmMemory, frequenciesOffset, distanceMapRange).set(countsZero);
         wasmInstance.exports.sortIndexes(indexesToSortOffset, centersOffset, precomputedDistancesOffset,
-                                         mappedDistancesOffset, frequenciesOffset, modelViewProjOffset,
-                                         sortedIndexesOffset, sceneIndexesOffset, transformsOffset, distanceMapRange,
-                                         splatSortCount, splatRenderCount, splatCount, usePrecomputedDistances, integerBasedSort,
-                                         dynamicMode);
+            mappedDistancesOffset, frequenciesOffset, modelViewProjOffset,
+            sortedIndexesOffset, sceneIndexesOffset, transformsOffset, distanceMapRange,
+            splatSortCount, splatRenderCount, splatCount, usePrecomputedDistances, integerBasedSort,
+            dynamicMode);
 
         const sortMessage = {
             'sortDone': true,
@@ -11820,14 +11828,14 @@ function sortWorker(self) {
             sceneIndexes = e.data.sceneIndexes;
             if (integerBasedSort) {
                 new Int32Array(wasmMemory, centersOffset + e.data.range.from * Constants.BytesPerInt * 4,
-                               e.data.range.count * 4).set(new Int32Array(centers));
+                    e.data.range.count * 4).set(new Int32Array(centers));
             } else {
                 new Float32Array(wasmMemory, centersOffset + e.data.range.from * Constants.BytesPerFloat * 4,
-                                 e.data.range.count * 4).set(new Float32Array(centers));
+                    e.data.range.count * 4).set(new Float32Array(centers));
             }
             if (dynamicMode) {
                 new Uint32Array(wasmMemory, sceneIndexesOffset + e.data.range.from * 4,
-                                e.data.range.count).set(new Uint32Array(sceneIndexes));
+                    e.data.range.count).set(new Uint32Array(sceneIndexes));
             }
             uploadedSplatCount = e.data.range.from + e.data.range.count;
         } else if (e.data.sort) {
@@ -11844,7 +11852,7 @@ function sortWorker(self) {
                 if (usePrecomputedDistances) copyPrecomputedDistances = e.data.sort.precomputedDistances;
             }
             sort(sortCount, renderCount, e.data.sort.modelViewProj, usePrecomputedDistances,
-                 copyIndexesToSort, copyPrecomputedDistances, copyTransforms);
+                copyIndexesToSort, copyPrecomputedDistances, copyTransforms);
         } else if (e.data.init) {
             // Yep, this is super hacky and gross :(
             Constants = e.data.init.Constants;
@@ -11865,26 +11873,26 @@ function sortWorker(self) {
             const memoryRequiredForCenters = splatCount * CENTERS_BYTES_PER_ENTRY;
             const memoryRequiredForModelViewProjectionMatrix = matrixSize;
             const memoryRequiredForPrecomputedDistances = integerBasedSort ?
-                                                          (splatCount * Constants.BytesPerInt) : (splatCount * Constants.BytesPerFloat);
+                (splatCount * Constants.BytesPerInt) : (splatCount * Constants.BytesPerFloat);
             const memoryRequiredForMappedDistances = splatCount * Constants.BytesPerInt;
             const memoryRequiredForSortedIndexes = splatCount * Constants.BytesPerInt;
             const memoryRequiredForIntermediateSortBuffers = integerBasedSort ? (distanceMapRange * Constants.BytesPerInt * 2) :
-                                                                                (distanceMapRange * Constants.BytesPerFloat * 2);
+                (distanceMapRange * Constants.BytesPerFloat * 2);
             const memoryRequiredforTransformIndexes = dynamicMode ? (splatCount * Constants.BytesPerInt) : 0;
             const memoryRequiredforTransforms = dynamicMode ? (Constants.MaxScenes * matrixSize) : 0;
             const extraMemory = Constants.MemoryPageSize * 32;
 
             const totalRequiredMemory = memoryRequiredForIndexesToSort +
-                                        memoryRequiredForCenters +
-                                        memoryRequiredForModelViewProjectionMatrix +
-                                        memoryRequiredForPrecomputedDistances +
-                                        memoryRequiredForMappedDistances +
-                                        memoryRequiredForIntermediateSortBuffers +
-                                        memoryRequiredForSortedIndexes +
-                                        memoryRequiredforTransformIndexes +
-                                        memoryRequiredforTransforms +
-                                        extraMemory;
-            const totalPagesRequired = Math.floor(totalRequiredMemory / Constants.MemoryPageSize ) + 1;
+                memoryRequiredForCenters +
+                memoryRequiredForModelViewProjectionMatrix +
+                memoryRequiredForPrecomputedDistances +
+                memoryRequiredForMappedDistances +
+                memoryRequiredForIntermediateSortBuffers +
+                memoryRequiredForSortedIndexes +
+                memoryRequiredforTransformIndexes +
+                memoryRequiredforTransforms +
+                extraMemory;
+            const totalPagesRequired = Math.floor(totalRequiredMemory / Constants.MemoryPageSize) + 1;
             const sorterWasmImport = {
                 module: {},
                 env: {
@@ -11896,39 +11904,39 @@ function sortWorker(self) {
                 }
             };
             WebAssembly.compile(sorterWasmBytes)
-            .then((wasmModule) => {
-                return WebAssembly.instantiate(wasmModule, sorterWasmImport);
-            })
-            .then((instance) => {
-                wasmInstance = instance;
-                indexesToSortOffset = 0;
-                centersOffset = indexesToSortOffset + memoryRequiredForIndexesToSort;
-                modelViewProjOffset = centersOffset + memoryRequiredForCenters;
-                precomputedDistancesOffset = modelViewProjOffset + memoryRequiredForModelViewProjectionMatrix;
-                mappedDistancesOffset = precomputedDistancesOffset + memoryRequiredForPrecomputedDistances;
-                frequenciesOffset = mappedDistancesOffset + memoryRequiredForMappedDistances;
-                sortedIndexesOffset = frequenciesOffset + memoryRequiredForIntermediateSortBuffers;
-                sceneIndexesOffset = sortedIndexesOffset + memoryRequiredForSortedIndexes;
-                transformsOffset = sceneIndexesOffset + memoryRequiredforTransformIndexes;
-                wasmMemory = sorterWasmImport.env.memory.buffer;
-                if (useSharedMemory) {
-                    self.postMessage({
-                        'sortSetupPhase1Complete': true,
-                        'indexesToSortBuffer': wasmMemory,
-                        'indexesToSortOffset': indexesToSortOffset,
-                        'sortedIndexesBuffer': wasmMemory,
-                        'sortedIndexesOffset': sortedIndexesOffset,
-                        'precomputedDistancesBuffer': wasmMemory,
-                        'precomputedDistancesOffset': precomputedDistancesOffset,
-                        'transformsBuffer': wasmMemory,
-                        'transformsOffset': transformsOffset
-                    });
-                } else {
-                    self.postMessage({
-                        'sortSetupPhase1Complete': true
-                    });
-                }
-            });
+                .then((wasmModule) => {
+                    return WebAssembly.instantiate(wasmModule, sorterWasmImport);
+                })
+                .then((instance) => {
+                    wasmInstance = instance;
+                    indexesToSortOffset = 0;
+                    centersOffset = indexesToSortOffset + memoryRequiredForIndexesToSort;
+                    modelViewProjOffset = centersOffset + memoryRequiredForCenters;
+                    precomputedDistancesOffset = modelViewProjOffset + memoryRequiredForModelViewProjectionMatrix;
+                    mappedDistancesOffset = precomputedDistancesOffset + memoryRequiredForPrecomputedDistances;
+                    frequenciesOffset = mappedDistancesOffset + memoryRequiredForMappedDistances;
+                    sortedIndexesOffset = frequenciesOffset + memoryRequiredForIntermediateSortBuffers;
+                    sceneIndexesOffset = sortedIndexesOffset + memoryRequiredForSortedIndexes;
+                    transformsOffset = sceneIndexesOffset + memoryRequiredforTransformIndexes;
+                    wasmMemory = sorterWasmImport.env.memory.buffer;
+                    if (useSharedMemory) {
+                        self.postMessage({
+                            'sortSetupPhase1Complete': true,
+                            'indexesToSortBuffer': wasmMemory,
+                            'indexesToSortOffset': indexesToSortOffset,
+                            'sortedIndexesBuffer': wasmMemory,
+                            'sortedIndexesOffset': sortedIndexesOffset,
+                            'precomputedDistancesBuffer': wasmMemory,
+                            'precomputedDistancesOffset': precomputedDistancesOffset,
+                            'transformsBuffer': wasmMemory,
+                            'transformsOffset': transformsOffset
+                        });
+                    } else {
+                        self.postMessage({
+                            'sortSetupPhase1Complete': true
+                        });
+                    }
+                });
         }
     };
 }
@@ -11940,7 +11948,7 @@ function isWeixinDevtools() {
 }
 
 function createSortWorker(splatCount, useSharedMemory, enableSIMDInSort, integerBasedSort, dynamicMode,
-                                 splatSortDistanceMapPrecision = Constants.DefaultSplatSortDistanceMapPrecision) {
+    splatSortDistanceMapPrecision = Constants.DefaultSplatSortDistanceMapPrecision) {
 
     // 强制关闭 shared memory
     useSharedMemory = false;
@@ -12034,28 +12042,28 @@ all copies or substantial portions of the Software.
 
 class VRButton {
 
-    static createButton( renderer, sessionInit = {} ) {
+    static createButton(renderer, sessionInit = {}) {
 
-        const button = document.createElement( 'button' );
+        const button = document.createElement('button');
 
-        function showEnterVR( /* device */ ) {
+        function showEnterVR( /* device */) {
 
             let currentSession = null;
 
-            async function onSessionStarted( session ) {
+            async function onSessionStarted(session) {
 
-                session.addEventListener( 'end', onSessionEnded );
+                session.addEventListener('end', onSessionEnded);
 
-                await renderer.xr.setSession( session );
+                await renderer.xr.setSession(session);
                 button.textContent = 'EXIT VR';
 
                 currentSession = session;
 
             }
 
-            function onSessionEnded( /* event */ ) {
+            function onSessionEnded( /* event */) {
 
-                currentSession.removeEventListener( 'end', onSessionEnded );
+                currentSession.removeEventListener('end', onSessionEnded);
 
                 button.textContent = 'ENTER VR';
 
@@ -12086,41 +12094,41 @@ class VRButton {
                     'local-floor',
                     'bounded-floor',
                     'layers',
-                    ...( sessionInit.optionalFeatures || [] )
+                    ...(sessionInit.optionalFeatures || [])
                 ],
             };
 
-            button.onmouseenter = function() {
+            button.onmouseenter = function () {
 
                 button.style.opacity = '1.0';
 
             };
 
-            button.onmouseleave = function() {
+            button.onmouseleave = function () {
 
                 button.style.opacity = '0.5';
 
             };
 
-            button.onclick = function() {
+            button.onclick = function () {
 
-                if ( currentSession === null ) {
+                if (currentSession === null) {
 
-                    navigator.xr.requestSession( 'immersive-vr', sessionOptions ).then( onSessionStarted );
+                    navigator.xr.requestSession('immersive-vr', sessionOptions).then(onSessionStarted);
 
                 } else {
 
                     currentSession.end();
 
-                    if ( navigator.xr.offerSession !== undefined ) {
+                    if (navigator.xr.offerSession !== undefined) {
 
-                        navigator.xr.offerSession( 'immersive-vr', sessionOptions )
-                            .then( onSessionStarted )
-                            .catch( ( err ) => {
+                        navigator.xr.offerSession('immersive-vr', sessionOptions)
+                            .then(onSessionStarted)
+                            .catch((err) => {
 
-                                console.warn( err );
+                                console.warn(err);
 
-                            } );
+                            });
 
                     }
 
@@ -12128,15 +12136,15 @@ class VRButton {
 
             };
 
-            if ( navigator.xr.offerSession !== undefined ) {
+            if (navigator.xr.offerSession !== undefined) {
 
-                navigator.xr.offerSession( 'immersive-vr', sessionOptions )
-                    .then( onSessionStarted )
-                    .catch( ( err ) => {
+                navigator.xr.offerSession('immersive-vr', sessionOptions)
+                    .then(onSessionStarted)
+                    .catch((err) => {
 
-                        console.warn( err );
+                        console.warn(err);
 
-                    } );
+                    });
 
             }
 
@@ -12165,17 +12173,17 @@ class VRButton {
 
         }
 
-        function showVRNotAllowed( exception ) {
+        function showVRNotAllowed(exception) {
 
             disableButton();
 
-            console.warn( 'Exception when trying to call xr.isSessionSupported', exception );
+            console.warn('Exception when trying to call xr.isSessionSupported', exception);
 
             button.textContent = 'VR NOT ALLOWED';
 
         }
 
-        function stylizeElement( element ) {
+        function stylizeElement(element) {
 
             element.style.position = 'absolute';
             element.style.bottom = '20px';
@@ -12192,34 +12200,34 @@ class VRButton {
 
         }
 
-        if ( 'xr' in navigator ) {
+        if ('xr' in navigator) {
 
             button.id = 'VRButton';
             button.style.display = 'none';
 
-            stylizeElement( button );
+            stylizeElement(button);
 
-            navigator.xr.isSessionSupported( 'immersive-vr' ).then( function( supported ) {
+            navigator.xr.isSessionSupported('immersive-vr').then(function (supported) {
 
                 supported ? showEnterVR() : showWebXRNotFound();
 
-                if ( supported && VRButton.xrSessionIsGranted ) {
+                if (supported && VRButton.xrSessionIsGranted) {
 
                     button.click();
 
                 }
 
-            } ).catch( showVRNotAllowed );
+            }).catch(showVRNotAllowed);
 
             return button;
 
         } else {
 
-            const message = document.createElement( 'a' );
+            const message = document.createElement('a');
 
-            if ( window.isSecureContext === false ) {
+            if (window.isSecureContext === false) {
 
-                message.href = document.location.href.replace( /^http:/, 'https:' );
+                message.href = document.location.href.replace(/^http:/, 'https:');
                 message.innerHTML = 'WEBXR NEEDS HTTPS'; // TODO Improve message
 
             } else {
@@ -12233,7 +12241,7 @@ class VRButton {
             message.style.width = '180px';
             message.style.textDecoration = 'none';
 
-            stylizeElement( message );
+            stylizeElement(message);
 
             return message;
 
@@ -12243,17 +12251,17 @@ class VRButton {
 
     static registerSessionGrantedListener() {
 
-        if ( typeof navigator !== 'undefined' && 'xr' in navigator ) {
+        if (typeof navigator !== 'undefined' && 'xr' in navigator) {
 
             // WebXRViewer (based on Firefox) has a bug where addEventListener
             // throws a silent exception and aborts execution entirely.
-            if ( /WebXRViewer\//i.test( navigator.userAgent ) ) return;
+            if (/WebXRViewer\//i.test(navigator.userAgent)) return;
 
-            navigator.xr.addEventListener( 'sessiongranted', () => {
+            navigator.xr.addEventListener('sessiongranted', () => {
 
                 VRButton.xrSessionIsGranted = true;
 
-            } );
+            });
 
         }
 
@@ -12280,44 +12288,44 @@ all copies or substantial portions of the Software.
 
 class ARButton {
 
-    static createButton( renderer, sessionInit = {} ) {
+    static createButton(renderer, sessionInit = {}) {
 
-        const button = document.createElement( 'button' );
+        const button = document.createElement('button');
 
-        function showStartAR( /* device */ ) {
+        function showStartAR( /* device */) {
 
-            if ( sessionInit.domOverlay === undefined ) {
+            if (sessionInit.domOverlay === undefined) {
 
-                const overlay = document.createElement( 'div' );
+                const overlay = document.createElement('div');
                 overlay.style.display = 'none';
-                document.body.appendChild( overlay );
+                document.body.appendChild(overlay);
 
-                const svg = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
-                svg.setAttribute( 'width', 38 );
-                svg.setAttribute( 'height', 38 );
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('width', 38);
+                svg.setAttribute('height', 38);
                 svg.style.position = 'absolute';
                 svg.style.right = '20px';
                 svg.style.top = '20px';
-                svg.addEventListener( 'click', function() {
+                svg.addEventListener('click', function () {
 
                     currentSession.end();
 
-                } );
-                overlay.appendChild( svg );
+                });
+                overlay.appendChild(svg);
 
-                const path = document.createElementNS( 'http://www.w3.org/2000/svg', 'path' );
-                path.setAttribute( 'd', 'M 12,12 L 28,28 M 28,12 12,28' );
-                path.setAttribute( 'stroke', '#fff' );
-                path.setAttribute( 'stroke-width', 2 );
-                svg.appendChild( path );
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'M 12,12 L 28,28 M 28,12 12,28');
+                path.setAttribute('stroke', '#fff');
+                path.setAttribute('stroke-width', 2);
+                svg.appendChild(path);
 
-                if ( sessionInit.optionalFeatures === undefined ) {
+                if (sessionInit.optionalFeatures === undefined) {
 
                     sessionInit.optionalFeatures = [];
 
                 }
 
-                sessionInit.optionalFeatures.push( 'dom-overlay' );
+                sessionInit.optionalFeatures.push('dom-overlay');
                 sessionInit.domOverlay = { root: overlay };
 
             }
@@ -12326,13 +12334,13 @@ class ARButton {
 
             let currentSession = null;
 
-            async function onSessionStarted( session ) {
+            async function onSessionStarted(session) {
 
-                session.addEventListener( 'end', onSessionEnded );
+                session.addEventListener('end', onSessionEnded);
 
-                renderer.xr.setReferenceSpaceType( 'local' );
+                renderer.xr.setReferenceSpaceType('local');
 
-                await renderer.xr.setSession( session );
+                await renderer.xr.setSession(session);
 
                 button.textContent = 'STOP AR';
                 sessionInit.domOverlay.root.style.display = '';
@@ -12341,9 +12349,9 @@ class ARButton {
 
             }
 
-            function onSessionEnded( /* event */ ) {
+            function onSessionEnded( /* event */) {
 
-                currentSession.removeEventListener( 'end', onSessionEnded );
+                currentSession.removeEventListener('end', onSessionEnded);
 
                 button.textContent = 'START AR';
                 sessionInit.domOverlay.root.style.display = 'none';
@@ -12362,37 +12370,37 @@ class ARButton {
 
             button.textContent = 'START AR';
 
-            button.onmouseenter = function() {
+            button.onmouseenter = function () {
 
                 button.style.opacity = '1.0';
 
             };
 
-            button.onmouseleave = function() {
+            button.onmouseleave = function () {
 
                 button.style.opacity = '0.5';
 
             };
 
-            button.onclick = function() {
+            button.onclick = function () {
 
-                if ( currentSession === null ) {
+                if (currentSession === null) {
 
-                    navigator.xr.requestSession( 'immersive-ar', sessionInit ).then( onSessionStarted );
+                    navigator.xr.requestSession('immersive-ar', sessionInit).then(onSessionStarted);
 
                 } else {
 
                     currentSession.end();
 
-                    if ( navigator.xr.offerSession !== undefined ) {
+                    if (navigator.xr.offerSession !== undefined) {
 
-                        navigator.xr.offerSession( 'immersive-ar', sessionInit )
-                            .then( onSessionStarted )
-                            .catch( ( err ) => {
+                        navigator.xr.offerSession('immersive-ar', sessionInit)
+                            .then(onSessionStarted)
+                            .catch((err) => {
 
-                                console.warn( err );
+                                console.warn(err);
 
-                            } );
+                            });
 
                     }
 
@@ -12400,15 +12408,15 @@ class ARButton {
 
             };
 
-            if ( navigator.xr.offerSession !== undefined ) {
+            if (navigator.xr.offerSession !== undefined) {
 
-                navigator.xr.offerSession( 'immersive-ar', sessionInit )
-                    .then( onSessionStarted )
-                    .catch( ( err ) => {
+                navigator.xr.offerSession('immersive-ar', sessionInit)
+                    .then(onSessionStarted)
+                    .catch((err) => {
 
-                        console.warn( err );
+                        console.warn(err);
 
-                    } );
+                    });
 
             }
 
@@ -12437,17 +12445,17 @@ class ARButton {
 
         }
 
-        function showARNotAllowed( exception ) {
+        function showARNotAllowed(exception) {
 
             disableButton();
 
-            console.warn( 'Exception when trying to call xr.isSessionSupported', exception );
+            console.warn('Exception when trying to call xr.isSessionSupported', exception);
 
             button.textContent = 'AR NOT ALLOWED';
 
         }
 
-        function stylizeElement( element ) {
+        function stylizeElement(element) {
 
             element.style.position = 'absolute';
             element.style.bottom = '20px';
@@ -12464,28 +12472,28 @@ class ARButton {
 
         }
 
-        if ( 'xr' in navigator ) {
+        if ('xr' in navigator) {
 
             button.id = 'ARButton';
             button.style.display = 'none';
 
-            stylizeElement( button );
+            stylizeElement(button);
 
-            navigator.xr.isSessionSupported( 'immersive-ar' ).then( function( supported ) {
+            navigator.xr.isSessionSupported('immersive-ar').then(function (supported) {
 
                 supported ? showStartAR() : showARNotSupported();
 
-            } ).catch( showARNotAllowed );
+            }).catch(showARNotAllowed);
 
             return button;
 
         } else {
 
-            const message = document.createElement( 'a' );
+            const message = document.createElement('a');
 
-            if ( window.isSecureContext === false ) {
+            if (window.isSecureContext === false) {
 
-                message.href = document.location.href.replace( /^http:/, 'https:' );
+                message.href = document.location.href.replace(/^http:/, 'https:');
                 message.innerHTML = 'WEBXR NEEDS HTTPS'; // TODO Improve message
 
             } else {
@@ -12499,7 +12507,7 @@ class ARButton {
             message.style.width = '180px';
             message.style.textDecoration = 'none';
 
-            stylizeElement( message );
+            stylizeElement(message);
 
             return message;
 
@@ -12530,9 +12538,9 @@ class Viewer {
 
     constructor(options = {}) {
 
-        
+
         // 天空包围盒
-        if(!options.envImageUrl) options.envImageUrl = './lib/skybox.jpg';
+        if (!options.envImageUrl) options.envImageUrl = './lib/skybox.jpg';
         this.envImgUrl = options.envImageUrl;
         // The natural 'up' vector for viewing the scene (only has an effect when used with orbit controls and
         // when the viewer uses its own camera).
@@ -12781,9 +12789,9 @@ class Viewer {
 
     createSplatMesh() {
         this.splatMesh = new SplatMesh(this.splatRenderMode, this.dynamicScene, this.enableOptionalEffects,
-                                       this.halfPrecisionCovariancesOnGPU, this.devicePixelRatio, this.gpuAcceleratedSort,
-                                       this.integerBasedSort, this.antialiased, this.maxScreenSpaceSplatSize, this.logLevel,
-                                       this.sphericalHarmonicsDegree, this.sceneFadeInRateMultiplier, this.kernel2DSize);
+            this.halfPrecisionCovariancesOnGPU, this.devicePixelRatio, this.gpuAcceleratedSort,
+            this.integerBasedSort, this.antialiased, this.maxScreenSpaceSplatSize, this.logLevel,
+            this.sphericalHarmonicsDegree, this.sceneFadeInRateMultiplier, this.kernel2DSize);
         this.splatMesh.frustumCulled = false;
         if (this.onSplatMeshChangedCallback) this.onSplatMeshChangedCallback();
     }
@@ -12830,7 +12838,7 @@ class Viewer {
 
             this.perspectiveCamera = new THREE.PerspectiveCamera(THREE_CAMERA_FOV, renderDimensions.x / renderDimensions.y, 0.1, 1000);
             this.orthographicCamera = new THREE.OrthographicCamera(renderDimensions.x / -2, renderDimensions.x / 2,
-                                                                   renderDimensions.y / 2, renderDimensions.y / -2, 0.1, 1000 );
+                renderDimensions.y / 2, renderDimensions.y / -2, 0.1, 1000);
             this.camera = this.startInOrthographicMode ? this.orthographicCamera : this.perspectiveCamera;
             this.camera.position.copy(this.initialCameraPosition);
             this.camera.up.copy(this.cameraUp).normalize();
@@ -12849,7 +12857,7 @@ class Viewer {
             });
             this.renderer.setPixelRatio(this.devicePixelRatio);
             this.renderer.autoClear = true;
-            this.renderer.setClearColor(new THREE.Color( 0x000000 ), 0.0);
+            this.renderer.setClearColor(new THREE.Color(0x000000), 0.0);
             this.renderer.setSize(renderDimensions.x, renderDimensions.y);
 
             this.resizeObserver = new ResizeObserver(() => {
@@ -12952,13 +12960,13 @@ class Viewer {
         this.onSplatMeshChangedCallback = callback;
     }
 
-    onKeyDown = function() {
+    onKeyDown = function () {
 
         const forward = new THREE.Vector3();
         const tempMatrixLeft = new THREE.Matrix4();
         const tempMatrixRight = new THREE.Matrix4();
 
-        return function(e) {
+        return function (e) {
             forward.set(0, 0, -1);
             forward.transformDirection(this.camera.matrixWorld);
             tempMatrixLeft.makeRotationAxis(forward, Math.PI / 128);
@@ -12967,23 +12975,23 @@ class Viewer {
                 case 'KeyG':
                     this.focalAdjustment += 0.02;
                     this.forceRenderNextFrame();
-                break;
+                    break;
                 case 'KeyF':
                     this.focalAdjustment -= 0.02;
                     this.forceRenderNextFrame();
-                break;
+                    break;
                 case 'ArrowLeft':
                     this.camera.up.transformDirection(tempMatrixLeft);
-                break;
+                    break;
                 case 'ArrowRight':
                     this.camera.up.transformDirection(tempMatrixRight);
-                break;
+                    break;
                 case 'KeyC':
                     this.showMeshCursor = !this.showMeshCursor;
-                break;
+                    break;
                 case 'KeyU':
                     this.showControlPlane = !this.showControlPlane;
-                break;
+                    break;
                 case 'KeyI':
                     this.showInfo = !this.showInfo;
                     if (this.showInfo) {
@@ -12991,27 +12999,27 @@ class Viewer {
                     } else {
                         this.infoPanel.hide();
                     }
-                break;
+                    break;
                 case 'KeyO':
                     if (!this.usingExternalCamera) {
                         this.setOrthographicMode(!this.camera.isOrthographicCamera);
                     }
-                break;
+                    break;
                 case 'KeyP':
                     if (!this.usingExternalCamera) {
                         this.splatMesh.setPointCloudModeEnabled(!this.splatMesh.getPointCloudModeEnabled());
                     }
-                break;
+                    break;
                 case 'Equal':
                     if (!this.usingExternalCamera) {
                         this.splatMesh.setSplatScale(this.splatMesh.getSplatScale() + 0.05);
                     }
-                break;
+                    break;
                 case 'Minus':
                     if (!this.usingExternalCamera) {
                         this.splatMesh.setSplatScale(Math.max(this.splatMesh.getSplatScale() - 0.05, 0.0));
                     }
-                break;
+                    break;
             }
         };
 
@@ -13026,11 +13034,11 @@ class Viewer {
         this.mouseDownTime = getCurrentTime();
     }
 
-    onMouseUp = function() {
+    onMouseUp = function () {
 
         const clickOffset = new THREE.Vector2();
 
-        return function(mouse) {
+        return function (mouse) {
             clickOffset.copy(this.mousePosition).sub(this.mouseDownPosition);
             const mouseUpTime = getCurrentTime();
             const wasClick = mouseUpTime - this.mouseDownTime < 0.5 && clickOffset.length() < 2;
@@ -13046,13 +13054,13 @@ class Viewer {
         this.checkForFocalPointChange();
     }
 
-    checkForFocalPointChange = function() {
+    checkForFocalPointChange = function () {
 
         const renderDimensions = new THREE.Vector2();
         const toNewFocalPoint = new THREE.Vector3();
         const outHits = [];
 
-        return function() {
+        return function () {
             if (!this.transitioningCameraTarget) {
                 this.getRenderDimensions(renderDimensions);
                 outHits.length = 0;
@@ -13118,11 +13126,11 @@ class Viewer {
         }
     }
 
-    static setCameraPositionFromZoom = function() {
+    static setCameraPositionFromZoom = function () {
 
         const tempVector = new THREE.Vector3();
 
-        return function(positionCamera, zoomedCamera, controls) {
+        return function (positionCamera, zoomedCamera, controls) {
             const toLookAtDistance = 1 / (zoomedCamera.zoom * 0.001);
             tempVector.copy(controls.target).sub(positionCamera.position).normalize().multiplyScalar(toLookAtDistance).negate();
             positionCamera.position.copy(controls.target).add(tempVector);
@@ -13131,22 +13139,22 @@ class Viewer {
     }();
 
 
-    static setCameraZoomFromPosition = function() {
+    static setCameraZoomFromPosition = function () {
 
         const tempVector = new THREE.Vector3();
 
-        return function(zoomCamera, positionZamera, controls) {
+        return function (zoomCamera, positionZamera, controls) {
             const toLookAtDistance = tempVector.copy(controls.target).sub(positionZamera.position).length();
             zoomCamera.zoom = 1 / (toLookAtDistance * .001);
         };
 
     }();
 
-    updateSplatMesh = function() {
+    updateSplatMesh = function () {
 
         const renderDimensions = new THREE.Vector2();
 
-        return function() {
+        return function () {
             if (!this.splatMesh) return;
             const splatCount = this.splatMesh.getSplatCount();
             if (splatCount > 0) {
@@ -13154,9 +13162,9 @@ class Viewer {
                 this.splatMesh.updateTransforms();
                 this.getRenderDimensions(renderDimensions);
                 const focalLengthX = this.camera.projectionMatrix.elements[0] * 0.5 *
-                                     this.devicePixelRatio * renderDimensions.x;
+                    this.devicePixelRatio * renderDimensions.x;
                 const focalLengthY = this.camera.projectionMatrix.elements[5] * 0.5 *
-                                     this.devicePixelRatio * renderDimensions.y;
+                    this.devicePixelRatio * renderDimensions.y;
 
                 const focalMultiplier = this.camera.isOrthographicCamera ? (1.0 / this.devicePixelRatio) : 1.0;
                 const focalAdjustment = this.focalAdjustment * focalMultiplier;
@@ -13164,7 +13172,7 @@ class Viewer {
 
                 this.adjustForWebXRStereo(renderDimensions);
                 this.splatMesh.updateUniforms(renderDimensions, focalLengthX * focalAdjustment, focalLengthY * focalAdjustment,
-                                              this.camera.isOrthographicCamera, this.camera.zoom || 1.0, inverseFocalAdjustment);
+                    this.camera.isOrthographicCamera, this.camera.zoom || 1.0, inverseFocalAdjustment);
             }
         };
 
@@ -13182,7 +13190,7 @@ class Viewer {
 
     isLoadingOrUnloading() {
         return Object.keys(this.splatSceneDownloadPromises).length > 0 || this.splatSceneDownloadAndBuildPromise !== null ||
-                           this.splatSceneRemovalPromise !== null;
+            this.splatSceneRemovalPromise !== null;
     }
 
     isDisposingOrDisposed() {
@@ -13288,80 +13296,80 @@ class Viewer {
                         downloadDone = true;
                         // this.loadingProgressBar.hide();
                         // 长图 URL
-                            const longImageUrl = this.envImgUrl === '' ? './lib/skybox.jpg' : this.envImgUrl;
-                            this.isLocalSkyUrl = true;
-                            // const longImageUrl = './lib/skybox2.png';
-                            // this.isLocalSkyUrl = true
-                            if(longImageUrl === '') {
-                                // 隐藏进度条
-                                this.loadingProgressBar.hide();
-                            } else {
-                                // 加载长图
-                                const img = new Image();
-                                img.crossOrigin = 'anonymous'; // 如果需要跨域
-                                img.src = longImageUrl;
-                                console.log(11111, longImageUrl, this.isLocalSkyUrl)
-                                img.onload = () => {
-                                    const tileWidth = img.width; // 假设每个面的宽度和高度相等
-                                    const tileHeight = img.height / 6
-console.log(22222)
-                                    const mtlUrls = [];
-                                    for (let i = 0; i < 6; i++) {
-                                        const canvas = document.createElement('canvas');
-                                        canvas.width = tileWidth;
-                                        canvas.height = tileHeight;
-                                        const context = canvas.getContext('2d');
-                                        // 设置模糊效果
-                                        context.filter = 'blur(0px)'; // 10px 是模糊半径，可调整
-                                        if(!this.isLocalSkyUrl) {
-                                            // 如果不是本地包围盒url
-                                            if(i === 5) {
-                                                // 上下翻转图像
-                                                context.translate(0, tileWidth);
-                                                context.scale(1, -1);
-                                            }
-                                            if(i === 4) {
-                                                // 左右翻转图像
-                                                context.translate(tileWidth, 0);
-                                                context.scale(-1, 1);
-                                            }
-                                            
-                                            context.drawImage(img, 0, tileHeight * i, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight);
-
-                                            mtlUrls.push(canvas.toDataURL());
-                                        } else {
+                        const longImageUrl = this.envImgUrl === '' ? './lib/skybox.jpg' : this.envImgUrl;
+                        this.isLocalSkyUrl = true;
+                        // const longImageUrl = './lib/skybox2.png';
+                        // this.isLocalSkyUrl = true
+                        if (longImageUrl === '') {
+                            // 隐藏进度条
+                            this.loadingProgressBar.hide();
+                        } else {
+                            // 加载长图
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous'; // 如果需要跨域
+                            img.src = longImageUrl;
+                            console.log(11111, longImageUrl, this.isLocalSkyUrl)
+                            img.onload = () => {
+                                const tileWidth = img.width; // 假设每个面的宽度和高度相等
+                                const tileHeight = img.height / 6
+                                console.log(22222)
+                                const mtlUrls = [];
+                                for (let i = 0; i < 6; i++) {
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = tileWidth;
+                                    canvas.height = tileHeight;
+                                    const context = canvas.getContext('2d');
+                                    // 设置模糊效果
+                                    context.filter = 'blur(0px)'; // 10px 是模糊半径，可调整
+                                    if (!this.isLocalSkyUrl) {
+                                        // 如果不是本地包围盒url
+                                        if (i === 5) {
                                             // 上下翻转图像
-                                            context.translate(0, tileHeight);
+                                            context.translate(0, tileWidth);
                                             context.scale(1, -1);
-
-                                            // 绘制图像的第i个部分
-                                            context.drawImage(img, 0, tileHeight * i, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight);
-
-                                            mtlUrls.push(canvas.toDataURL());
                                         }
+                                        if (i === 4) {
+                                            // 左右翻转图像
+                                            context.translate(tileWidth, 0);
+                                            context.scale(-1, 1);
+                                        }
+
+                                        context.drawImage(img, 0, tileHeight * i, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight);
+
+                                        mtlUrls.push(canvas.toDataURL());
+                                    } else {
+                                        // 上下翻转图像
+                                        context.translate(0, tileHeight);
+                                        context.scale(1, -1);
+
+                                        // 绘制图像的第i个部分
+                                        context.drawImage(img, 0, tileHeight * i, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight);
+
+                                        mtlUrls.push(canvas.toDataURL());
                                     }
-                                    const urls = !this.isLocalSkyUrl
-                                                    ? [mtlUrls[5], mtlUrls[3], mtlUrls[0], mtlUrls[2], mtlUrls[1], mtlUrls[4]]
-                                                    : [mtlUrls[4], mtlUrls[3], mtlUrls[2], mtlUrls[0], mtlUrls[1], mtlUrls[5]]
+                                }
+                                const urls = !this.isLocalSkyUrl
+                                    ? [mtlUrls[5], mtlUrls[3], mtlUrls[0], mtlUrls[2], mtlUrls[1], mtlUrls[4]]
+                                    : [mtlUrls[4], mtlUrls[3], mtlUrls[2], mtlUrls[0], mtlUrls[1], mtlUrls[5]]
 
-                                    // 使用 CubeTextureLoader 加载六个面纹理
-                                    const loader = new THREE.CubeTextureLoader();
-                                    loader.setCrossOrigin('anonymous'); // 如果需要跨域
+                                // 使用 CubeTextureLoader 加载六个面纹理
+                                const loader = new THREE.CubeTextureLoader();
+                                loader.setCrossOrigin('anonymous'); // 如果需要跨域
 
-                                    const textureCube = loader.load(urls, () => {
-                                        // 隐藏进度条
-                                        this.loadingProgressBar.hide();
-                                    });
+                                const textureCube = loader.load(urls, () => {
+                                    // 隐藏进度条
+                                    this.loadingProgressBar.hide();
+                                });
 
-                                    this.threeScene.background = textureCube;
+                                this.threeScene.background = textureCube;
 
-                                    // 创建并添加一个临时对象
-                                    const tempGeometry = new THREE.BoxGeometry(1, 1, 1);
-                                    const tempMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, visible: false });
-                                    const tempMesh = new THREE.Mesh(tempGeometry, tempMaterial);
-                                    this.threeScene.add(tempMesh);
-                                };
-                            }
+                                // 创建并添加一个临时对象
+                                const tempGeometry = new THREE.BoxGeometry(1, 1, 1);
+                                const tempMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, visible: false });
+                                const tempMesh = new THREE.Mesh(tempGeometry, tempMaterial);
+                                this.threeScene.add(tempMesh);
+                            };
+                        }
                     } else {
                         this.loadingProgressBar.setProgress(downloadedPercentage);
                     }
@@ -13384,17 +13392,17 @@ console.log(22222)
                 'splatAlphaRemovalThreshold': options.splatAlphaRemovalThreshold,
             };
             return this.addSplatBuffers([splatBuffer], [addSplatBufferOptions],
-                                         finalBuild, firstBuild && showLoadingUI, showLoadingUI,
-                                         progressiveLoad, progressiveLoad).then(() => {
-                if (!progressiveLoad && options.onProgress) options.onProgress(100, '100%', LoaderStatus.Processing);
-                splatBuffersAddedUIUpdate(firstBuild, finalBuild);
-            });
+                finalBuild, firstBuild && showLoadingUI, showLoadingUI,
+                progressiveLoad, progressiveLoad).then(() => {
+                    if (!progressiveLoad && options.onProgress) options.onProgress(100, '100%', LoaderStatus.Processing);
+                    splatBuffersAddedUIUpdate(firstBuild, finalBuild);
+                });
         };
 
         const loadFunc = progressiveLoad ? this.downloadAndBuildSingleSplatSceneProgressiveLoad.bind(this) :
-                                           this.downloadAndBuildSingleSplatSceneStandardLoad.bind(this);
+            this.downloadAndBuildSingleSplatSceneStandardLoad.bind(this);
         return loadFunc(path, format, options.splatAlphaRemovalThreshold, buildSection.bind(this),
-                        onProgress, hideLoadingUI.bind(this), options.headers);
+            onProgress, hideLoadingUI.bind(this), options.headers);
     }
 
     /**
@@ -13413,7 +13421,7 @@ console.log(22222)
     downloadAndBuildSingleSplatSceneStandardLoad(path, format, splatAlphaRemovalThreshold, buildFunc, onProgress, onException, headers) {
 
         const downloadPromise = this.downloadSplatSceneToSplatBuffer(path, splatAlphaRemovalThreshold, onProgress, false,
-                                                                     undefined, format, headers);
+            undefined, format, headers);
         const downloadAndBuildPromise = abortablePromiseWithExtractedComponents(downloadPromise.abortHandler);
 
         downloadPromise.then((splatBuffer) => {
@@ -13423,12 +13431,12 @@ console.log(22222)
                 this.clearSplatSceneDownloadAndBuildPromise();
             });
         })
-        .catch((e) => {
-            if (onException) onException();
-            this.clearSplatSceneDownloadAndBuildPromise();
-            this.removeSplatSceneDownloadPromise(downloadPromise);
-            downloadAndBuildPromise.reject(this.updateError(e, `Viewer::addSplatScene -> Could not load file ${path}`));
-        });
+            .catch((e) => {
+                if (onException) onException();
+                this.clearSplatSceneDownloadAndBuildPromise();
+                this.removeSplatSceneDownloadPromise(downloadPromise);
+                downloadAndBuildPromise.reject(this.updateError(e, `Viewer::addSplatScene -> Could not load file ${path}`));
+            });
 
         this.addSplatSceneDownloadPromise(downloadPromise);
         this.setSplatSceneDownloadAndBuildPromise(downloadAndBuildPromise.promise);
@@ -13450,7 +13458,7 @@ console.log(22222)
      * @return {AbortablePromise}
      */
     downloadAndBuildSingleSplatSceneProgressiveLoad(path, format, splatAlphaRemovalThreshold, buildFunc,
-                                                    onDownloadProgress, onDownloadException, headers) {
+        onDownloadProgress, onDownloadException, headers) {
         let progressiveLoadedSectionBuildCount = 0;
         let progressiveLoadedSectionBuilding = false;
         const queuedProgressiveLoadSectionBuilds = [];
@@ -13462,18 +13470,18 @@ console.log(22222)
                 progressiveLoadedSectionBuilding = true;
                 const queuedBuild = queuedProgressiveLoadSectionBuilds.shift();
                 buildFunc(queuedBuild.splatBuffer, queuedBuild.firstBuild, queuedBuild.finalBuild)
-                .then(() => {
-                    progressiveLoadedSectionBuilding = false;
-                    if (queuedBuild.firstBuild) {
-                        progressiveLoadFirstSectionBuildPromise.resolve();
-                    } else if (queuedBuild.finalBuild) {
-                        splatSceneDownloadAndBuildPromise.resolve();
-                        this.clearSplatSceneDownloadAndBuildPromise();
-                    }
-                    if (queuedProgressiveLoadSectionBuilds.length > 0) {
-                        delayedExecute(() => checkAndBuildProgressiveLoadSections());
-                    }
-                });
+                    .then(() => {
+                        progressiveLoadedSectionBuilding = false;
+                        if (queuedBuild.firstBuild) {
+                            progressiveLoadFirstSectionBuildPromise.resolve();
+                        } else if (queuedBuild.finalBuild) {
+                            splatSceneDownloadAndBuildPromise.resolve();
+                            this.clearSplatSceneDownloadAndBuildPromise();
+                        }
+                        if (queuedProgressiveLoadSectionBuilds.length > 0) {
+                            delayedExecute(() => checkAndBuildProgressiveLoadSections());
+                        }
+                    });
             }
         };
 
@@ -13493,7 +13501,7 @@ console.log(22222)
         };
 
         const splatSceneDownloadPromise = this.downloadSplatSceneToSplatBuffer(path, splatAlphaRemovalThreshold, onDownloadProgress, true,
-                                                                               onProgressiveLoadSectionProgress, format, headers);
+            onProgressiveLoadSectionProgress, format, headers);
 
         const progressiveLoadFirstSectionBuildPromise = abortablePromiseWithExtractedComponents(splatSceneDownloadPromise.abortHandler);
         const splatSceneDownloadAndBuildPromise = abortablePromiseWithExtractedComponents();
@@ -13504,13 +13512,13 @@ console.log(22222)
         splatSceneDownloadPromise.then(() => {
             this.removeSplatSceneDownloadPromise(splatSceneDownloadPromise);
         })
-        .catch((e) => {
-            this.clearSplatSceneDownloadAndBuildPromise();
-            this.removeSplatSceneDownloadPromise(splatSceneDownloadPromise);
-            const error = this.updateError(e, `Viewer::addSplatScene -> Could not load one or more scenes`);
-            progressiveLoadFirstSectionBuildPromise.reject(error);
-            if (onDownloadException) onDownloadException(error);
-        });
+            .catch((e) => {
+                this.clearSplatSceneDownloadAndBuildPromise();
+                this.removeSplatSceneDownloadPromise(splatSceneDownloadPromise);
+                const error = this.updateError(e, `Viewer::addSplatScene -> Could not load one or more scenes`);
+                progressiveLoadFirstSectionBuildPromise.reject(error);
+                if (onDownloadException) onDownloadException(error);
+            });
 
         return progressiveLoadFirstSectionBuildPromise.promise;
     }
@@ -13567,7 +13575,7 @@ console.log(22222)
             if (showLoadingUI) {
                 if (loaderStatus === LoaderStatus.Downloading) {
                     this.loadingSpinner.setMessageForTask(loadingUITaskId, totalPercent == 100 ?
-                                                          `Download complete!` : `Downloading: ${percentLabel}`);
+                        `Download complete!` : `Downloading: ${percentLabel}`);
                 }
             }
             if (onProgress) onProgress(totalPercent, percentLabel, loaderStatus);
@@ -13579,31 +13587,31 @@ console.log(22222)
             const options = sceneOptions[i];
             const format = (options.format !== undefined && options.format !== null) ? options.format : sceneFormatFromPath(options.path);
             const baseDownloadPromise = this.downloadSplatSceneToSplatBuffer(options.path, options.splatAlphaRemovalThreshold,
-                                                                             onLoadProgress.bind(this, i), false, undefined,
-                                                                             format, options.headers);
+                onLoadProgress.bind(this, i), false, undefined,
+                format, options.headers);
             baseDownloadPromises.push(baseDownloadPromise);
             nativeDownloadPromises.push(baseDownloadPromise.promise);
         }
 
         const downloadAndBuildPromise = new AbortablePromise((resolve, reject) => {
             Promise.all(nativeDownloadPromises)
-            .then((splatBuffers) => {
-                if (showLoadingUI) this.loadingSpinner.removeTask(loadingUITaskId);
-                if (onProgress) onProgress(0, '0%', LoaderStatus.Processing);
-                this.addSplatBuffers(splatBuffers, sceneOptions, true, showLoadingUI, showLoadingUI, false, false).then(() => {
-                    if (onProgress) onProgress(100, '100%', LoaderStatus.Processing);
+                .then((splatBuffers) => {
+                    if (showLoadingUI) this.loadingSpinner.removeTask(loadingUITaskId);
+                    if (onProgress) onProgress(0, '0%', LoaderStatus.Processing);
+                    this.addSplatBuffers(splatBuffers, sceneOptions, true, showLoadingUI, showLoadingUI, false, false).then(() => {
+                        if (onProgress) onProgress(100, '100%', LoaderStatus.Processing);
+                        this.clearSplatSceneDownloadAndBuildPromise();
+                        resolve();
+                    });
+                })
+                .catch((e) => {
+                    if (showLoadingUI) this.loadingSpinner.removeTask(loadingUITaskId);
                     this.clearSplatSceneDownloadAndBuildPromise();
-                    resolve();
+                    reject(this.updateError(e, `Viewer::addSplatScenes -> Could not load one or more splat scenes.`));
+                })
+                .finally(() => {
+                    this.removeSplatSceneDownloadPromise(downloadAndBuildPromise);
                 });
-            })
-            .catch((e) => {
-                if (showLoadingUI) this.loadingSpinner.removeTask(loadingUITaskId);
-                this.clearSplatSceneDownloadAndBuildPromise();
-                reject(this.updateError(e, `Viewer::addSplatScenes -> Could not load one or more splat scenes.`));
-            })
-            .finally(() => {
-                this.removeSplatSceneDownloadPromise(downloadAndBuildPromise);
-            });
         }, (reason) => {
             for (let baseDownloadPromise of baseDownloadPromises) {
                 baseDownloadPromise.abort(reason);
@@ -13628,22 +13636,22 @@ console.log(22222)
      * @return {AbortablePromise}
      */
     downloadSplatSceneToSplatBuffer(path, splatAlphaRemovalThreshold = 1, onProgress = undefined,
-                                    progressiveBuild = false, onSectionBuilt = undefined, format, headers) {
+        progressiveBuild = false, onSectionBuilt = undefined, format, headers) {
         try {
             if (format === SceneFormat.Splat || format === SceneFormat.KSplat || format === SceneFormat.Ply) {
                 const optimizeSplatData = progressiveBuild ? false : this.optimizeSplatData;
                 if (format === SceneFormat.Splat) {
                     return SplatLoader.loadFromURL(path, onProgress, progressiveBuild, onSectionBuilt, splatAlphaRemovalThreshold,
-                                                   this.inMemoryCompressionLevel, optimizeSplatData, headers);
+                        this.inMemoryCompressionLevel, optimizeSplatData, headers);
                 } else if (format === SceneFormat.KSplat) {
                     return KSplatLoader.loadFromURL(path, onProgress, progressiveBuild, onSectionBuilt, headers);
                 } else if (format === SceneFormat.Ply) {
                     return PlyLoader.loadFromURL(path, onProgress, progressiveBuild, onSectionBuilt, splatAlphaRemovalThreshold,
-                                                 this.inMemoryCompressionLevel, optimizeSplatData, this.sphericalHarmonicsDegree, headers);
+                        this.inMemoryCompressionLevel, optimizeSplatData, this.sphericalHarmonicsDegree, headers);
                 }
             } else if (format === SceneFormat.Spz) {
                 return SpzLoader.loadFromURL(path, onProgress, splatAlphaRemovalThreshold, this.inMemoryCompressionLevel,
-                                             this.optimizeSplatData, this.sphericalHarmonicsDegree, headers);
+                    this.optimizeSplatData, this.sphericalHarmonicsDegree, headers);
             }
         } catch (e) {
             throw this.updateError(e, null);
@@ -13660,11 +13668,11 @@ console.log(22222)
      * Add one or more instances of SplatBuffer to the SplatMesh instance managed by the viewer and set up the sorting web worker.
      * This function will terminate the existing sort worker (if there is one).
      */
-    addSplatBuffers = function() {
+    addSplatBuffers = function () {
 
-        return function(splatBuffers, splatBufferOptions = [], finalBuild = true, showLoadingUI = true,
-                        showLoadingUIForSplatTreeBuild = true, replaceExisting = false,
-                        enableRenderBeforeFirstSort = false, preserveVisibleRegion = true) {
+        return function (splatBuffers, splatBufferOptions = [], finalBuild = true, showLoadingUI = true,
+            showLoadingUIForSplatTreeBuild = true, replaceExisting = false,
+            enableRenderBeforeFirstSort = false, preserveVisibleRegion = true) {
 
             if (this.isDisposingOrDisposed()) return Promise.resolve();
 
@@ -13686,8 +13694,8 @@ console.log(22222)
                         resolve();
                     } else {
                         const buildResults = this.addSplatBuffersToMesh(splatBuffers, splatBufferOptions, finalBuild,
-                                                                        showLoadingUIForSplatTreeBuild, replaceExisting,
-                                                                        preserveVisibleRegion);
+                            showLoadingUIForSplatTreeBuild, replaceExisting,
+                            preserveVisibleRegion);
 
                         const maxSplatCount = this.splatMesh.getMaxSplatCount();
                         if (this.sortWorker && this.sortWorker.maxSplatCount !== maxSplatCount) this.disposeSortWorker();
@@ -13705,7 +13713,7 @@ console.log(22222)
                             });
                         }
                         const sortWorkerSetupPromise = (!this.sortWorker && maxSplatCount > 0) ?
-                                                         this.setupSortWorker(this.splatMesh) : Promise.resolve();
+                            this.setupSortWorker(this.splatMesh) : Promise.resolve();
                         sortWorkerSetupPromise.then(() => {
                             if (this.isDisposingOrDisposed()) return;
                             this.runSplatSort(true, true).then((sortRunning) => {
@@ -13755,12 +13763,12 @@ console.log(22222)
      * @param {boolean} showLoadingUIForSplatTreeBuild Whether or not to show the loading spinner during construction of the splat tree.
      * @return {object} Object containing info about the splats that are updated
      */
-    addSplatBuffersToMesh = function() {
+    addSplatBuffersToMesh = function () {
 
         let splatOptimizingTaskId;
 
-        return function(splatBuffers, splatBufferOptions, finalBuild = true, showLoadingUIForSplatTreeBuild = false,
-                        replaceExisting = false, preserveVisibleRegion = true) {
+        return function (splatBuffers, splatBufferOptions, finalBuild = true, showLoadingUIForSplatTreeBuild = false,
+            replaceExisting = false, preserveVisibleRegion = true) {
             if (this.isDisposingOrDisposed()) return;
             let allSplatBuffers = [];
             let allSplatBufferOptions = [];
@@ -13789,7 +13797,7 @@ console.log(22222)
                 }
             };
             const buildResults = this.splatMesh.build(allSplatBuffers, allSplatBufferOptions, true, finalBuild, onSplatTreeIndexesUpload,
-                                                      onSplatTreeReady, preserveVisibleRegion);
+                onSplatTreeReady, preserveVisibleRegion);
             if (finalBuild && this.freeIntermediateSplatData) this.splatMesh.freeIntermediateSplatData();
             return buildResults;
         };
@@ -13808,7 +13816,7 @@ console.log(22222)
             const splatCount = splatMesh.getSplatCount();
             const maxSplatCount = splatMesh.getMaxSplatCount();
             this.sortWorker = createSortWorker(maxSplatCount, this.sharedMemoryForWorkers, this.enableSIMDInSort,
-                                               this.integerBasedSort, this.splatMesh.dynamicMode, this.splatSortDistanceMapPrecision);
+                this.integerBasedSort, this.splatMesh.dynamicMode, this.splatSortDistanceMapPrecision);
             this.sortWorker.onmessage = (e) => {
                 if (e.data.sortDone) {
                     this.sortRunning = false;
@@ -13837,14 +13845,14 @@ console.log(22222)
                     if (this.logLevel >= LogLevel.Info) console.log('Sorting web worker WASM setup complete.');
                     if (this.sharedMemoryForWorkers) {
                         this.sortWorkerSortedIndexes = new Uint32Array(e.data.sortedIndexesBuffer,
-                                                                       e.data.sortedIndexesOffset, maxSplatCount);
+                            e.data.sortedIndexesOffset, maxSplatCount);
                         this.sortWorkerIndexesToSort = new Uint32Array(e.data.indexesToSortBuffer,
-                                                                       e.data.indexesToSortOffset, maxSplatCount);
+                            e.data.indexesToSortOffset, maxSplatCount);
                         this.sortWorkerPrecomputedDistances = new DistancesArrayType(e.data.precomputedDistancesBuffer,
-                                                                                     e.data.precomputedDistancesOffset,
-                                                                                     maxSplatCount);
-                         this.sortWorkerTransforms = new Float32Array(e.data.transformsBuffer,
-                                                                      e.data.transformsOffset, Constants.MaxScenes * 16);
+                            e.data.precomputedDistancesOffset,
+                            maxSplatCount);
+                        this.sortWorkerTransforms = new Float32Array(e.data.transformsBuffer,
+                            e.data.transformsOffset, Constants.MaxScenes * 16);
                     } else {
                         this.sortWorkerIndexesToSort = new Uint32Array(maxSplatCount);
                         this.sortWorkerPrecomputedDistances = new DistancesArrayType(maxSplatCount);
@@ -13964,33 +13972,33 @@ console.log(22222)
                 this.sceneRevealMode = SceneRevealMode.Instant;
                 this.createSplatMesh();
                 this.addSplatBuffers(savedSplatBuffers, savedSceneOptions, true, false, true)
-                .then(() => {
-                    if (checkForEarlyExit()) return;
-                    checkAndHideLoadingUI();
-                    this.splatMesh.scenes.forEach((scene, index) => {
-                        scene.position.copy(savedSceneTransformComponents[index].position);
-                        scene.quaternion.copy(savedSceneTransformComponents[index].quaternion);
-                        scene.scale.copy(savedSceneTransformComponents[index].scale);
-                    });
-                    this.splatMesh.updateTransforms();
-                    this.splatRenderReady = false;
-
-                    this.runSplatSort(true)
                     .then(() => {
-                        if (checkForEarlyExit()) {
-                            this.splatRenderReady = true;
-                            return;
-                        }
-                        sortPromise = this.sortPromise || Promise.resolve();
-                        sortPromise.then(() => {
-                            this.splatRenderReady = true;
-                            onDone();
+                        if (checkForEarlyExit()) return;
+                        checkAndHideLoadingUI();
+                        this.splatMesh.scenes.forEach((scene, index) => {
+                            scene.position.copy(savedSceneTransformComponents[index].position);
+                            scene.quaternion.copy(savedSceneTransformComponents[index].quaternion);
+                            scene.scale.copy(savedSceneTransformComponents[index].scale);
                         });
+                        this.splatMesh.updateTransforms();
+                        this.splatRenderReady = false;
+
+                        this.runSplatSort(true)
+                            .then(() => {
+                                if (checkForEarlyExit()) {
+                                    this.splatRenderReady = true;
+                                    return;
+                                }
+                                sortPromise = this.sortPromise || Promise.resolve();
+                                sortPromise.then(() => {
+                                    this.splatRenderReady = true;
+                                    onDone();
+                                });
+                            });
+                    })
+                    .catch((e) => {
+                        onDone(e);
                     });
-                })
-                .catch((e) => {
-                    onDone(e);
-                });
             });
         });
 
@@ -14127,14 +14135,14 @@ console.log(22222)
         this.renderNextFrame = true;
     }
 
-    shouldRender = function() {
+    shouldRender = function () {
 
         let renderCount = 0;
         const lastCameraPosition = new THREE.Vector3();
         const lastCameraOrientation = new THREE.Quaternion();
         const changeEpsilon = 0.0001;
 
-        return function() {
+        return function () {
             if (!this.initialized || !this.splatRenderReady || this.isDisposingOrDisposed()) return false;
 
             let shouldRender = false;
@@ -14143,16 +14151,16 @@ console.log(22222)
                 const cp = this.camera.position;
                 const co = this.camera.quaternion;
                 cameraChanged = Math.abs(cp.x - lastCameraPosition.x) > changeEpsilon ||
-                                Math.abs(cp.y - lastCameraPosition.y) > changeEpsilon ||
-                                Math.abs(cp.z - lastCameraPosition.z) > changeEpsilon ||
-                                Math.abs(co.x - lastCameraOrientation.x) > changeEpsilon ||
-                                Math.abs(co.y - lastCameraOrientation.y) > changeEpsilon ||
-                                Math.abs(co.z - lastCameraOrientation.z) > changeEpsilon ||
-                                Math.abs(co.w - lastCameraOrientation.w) > changeEpsilon;
+                    Math.abs(cp.y - lastCameraPosition.y) > changeEpsilon ||
+                    Math.abs(cp.z - lastCameraPosition.z) > changeEpsilon ||
+                    Math.abs(co.x - lastCameraOrientation.x) > changeEpsilon ||
+                    Math.abs(co.y - lastCameraOrientation.y) > changeEpsilon ||
+                    Math.abs(co.z - lastCameraOrientation.z) > changeEpsilon ||
+                    Math.abs(co.w - lastCameraOrientation.w) > changeEpsilon;
             }
 
             shouldRender = this.renderMode !== RenderMode.Never && (renderCount === 0 || this.splatMesh.visibleRegionChanging ||
-                           cameraChanged || this.renderMode === RenderMode.Always || this.dynamicMode === true || this.renderNextFrame);
+                cameraChanged || this.renderMode === RenderMode.Always || this.dynamicMode === true || this.renderNextFrame);
 
             if (this.camera) {
                 lastCameraPosition.copy(this.camera.position);
@@ -14165,9 +14173,9 @@ console.log(22222)
 
     }();
 
-    render = function() {
+    render = function () {
 
-        return function() {
+        return function () {
             if (!this.initialized || !this.splatRenderReady || this.isDisposingOrDisposed()) return;
 
             const hasRenderables = (threeScene) => {
@@ -14220,12 +14228,12 @@ console.log(22222)
         this.init();
     }
 
-    updateFPS = function() {
+    updateFPS = function () {
 
         let lastCalcTime = getCurrentTime();
         let frameCount = 0;
 
-        return function() {
+        return function () {
             if (this.consecutiveRenderFrames > CONSECUTIVE_RENDERED_FRAMES_FOR_FPS_CALCULATION) {
                 const currentTime = getCurrentTime();
                 const calcDelta = currentTime - lastCalcTime;
@@ -14243,13 +14251,13 @@ console.log(22222)
 
     }();
 
-    updateForRendererSizeChanges = function() {
+    updateForRendererSizeChanges = function () {
 
         const lastRendererSize = new THREE.Vector2();
         const currentRendererSize = new THREE.Vector2();
         let lastCameraOrthographic;
 
-        return function() {
+        return function () {
             if (!this.usingExternalCamera) {
                 this.renderer.getSize(currentRendererSize);
                 if (lastCameraOrthographic === undefined || lastCameraOrthographic !== this.camera.isOrthographicCamera ||
@@ -14271,11 +14279,11 @@ console.log(22222)
 
     }();
 
-    timingSensitiveUpdates = function() {
+    timingSensitiveUpdates = function () {
 
         let lastUpdateTime;
 
-        return function() {
+        return function () {
             const currentTime = getCurrentTime();
             if (!lastUpdateTime) lastUpdateTime = currentTime;
             const timeDelta = currentTime - lastUpdateTime;
@@ -14288,13 +14296,13 @@ console.log(22222)
 
     }();
 
-    updateCameraTransition = function() {
+    updateCameraTransition = function () {
 
         let tempCameraTarget = new THREE.Vector3();
         let toPreviousTarget = new THREE.Vector3();
         let toNextTarget = new THREE.Vector3();
 
-        return function(currentTime) {
+        return function (currentTime) {
             if (this.transitioningCameraTarget) {
                 toPreviousTarget.copy(this.previousCameraTarget).sub(this.camera.position).normalize();
                 toNextTarget.copy(this.nextCameraTarget).sub(this.camera.position).normalize();
@@ -14312,12 +14320,12 @@ console.log(22222)
 
     }();
 
-    updateFocusMarker = function() {
+    updateFocusMarker = function () {
 
         const renderDimensions = new THREE.Vector2();
         let wasTransitioning = false;
 
-        return function(timeDelta) {
+        return function (timeDelta) {
             this.getRenderDimensions(renderDimensions);
             if (this.transitioningCameraTarget) {
                 this.sceneHelper.setFocusMarkerVisibility(true);
@@ -14344,12 +14352,12 @@ console.log(22222)
 
     }();
 
-    updateMeshCursor = function() {
+    updateMeshCursor = function () {
 
         const outHits = [];
         const renderDimensions = new THREE.Vector2();
 
-        return function() {
+        return function () {
             if (this.showMeshCursor) {
                 this.forceRenderNextFrame();
                 this.getRenderDimensions(renderDimensions);
@@ -14370,11 +14378,11 @@ console.log(22222)
 
     }();
 
-    updateInfoPanel = function() {
+    updateInfoPanel = function () {
 
         const renderDimensions = new THREE.Vector2();
 
-        return function() {
+        return function () {
             if (!this.showInfo) return;
             const splatCount = this.splatMesh.getSplatCount();
             this.getRenderDimensions(renderDimensions);
@@ -14382,10 +14390,10 @@ console.log(22222)
             const meshCursorPosition = this.showMeshCursor ? this.sceneHelper.meshCursor.position : null;
             const splatRenderCountPct = splatCount > 0 ? this.splatRenderCount / splatCount * 100 : 0;
             this.infoPanel.update(renderDimensions, this.camera.position, cameraLookAtPosition,
-                                  this.camera.up, this.camera.isOrthographicCamera, meshCursorPosition,
-                                  this.currentFPS || 'N/A', splatCount, this.splatRenderCount, splatRenderCountPct,
-                                  this.lastSortTime, this.focalAdjustment, this.splatMesh.getSplatScale(),
-                                  this.splatMesh.getPointCloudModeEnabled());
+                this.camera.up, this.camera.isOrthographicCamera, meshCursorPosition,
+                this.currentFPS || 'N/A', splatCount, this.splatRenderCount, splatRenderCountPct,
+                this.lastSortTime, this.focalAdjustment, this.splatMesh.getSplatScale(),
+                this.splatMesh.getPointCloudModeEnabled());
         };
 
     }();
@@ -14399,7 +14407,7 @@ console.log(22222)
         }
     }
 
-    runSplatSort = function() {
+    runSplatSort = function () {
 
         const mvpMatrix = new THREE.Matrix4();
         const cameraPositionArray = [];
@@ -14424,7 +14432,7 @@ console.log(22222)
             }
         ];
 
-        return function(force = false, forceSortAll = false) {
+        return function (force = false, forceSortAll = false) {
             if (!this.initialized) return Promise.resolve(false);
             if (this.sortRunning) return Promise.resolve(true);
             if (this.splatMesh.getSplatCount() <= 0) {
@@ -14469,7 +14477,7 @@ console.log(22222)
                     if (this.splatMesh.dynamicMode || shouldSortAll) {
                         queuedSorts.push(this.splatRenderCount);
                     } else {
-                            for (let partialSort of partialSorts) {
+                        for (let partialSort of partialSorts) {
                             if (angleDiff < partialSort.angleThreshold) {
                                 for (let sortFraction of partialSort.sortFractions) {
                                     queuedSorts.push(Math.floor(this.splatRenderCount * sortFraction));
@@ -14535,7 +14543,7 @@ console.log(22222)
     /**
      * Determine which splats to render by checking which are inside or close to the view frustum
      */
-    gatherSceneNodesForSort = function() {
+    gatherSceneNodesForSort = function () {
 
         const nodeRenderList = [];
         let allSplatsSortBuffer = null;
@@ -14553,7 +14561,7 @@ console.log(22222)
             return tempMax.copy(node.max).sub(node.min).length();
         };
 
-        return function(gatherAllNodes = false) {
+        return function (gatherAllNodes = false) {
 
             this.getRenderDimensions(renderDimensions);
             const cameraFocalLength = (renderDimensions.y / 2.0) / Math.tan(this.camera.fov / 2.0 * THREE.MathUtils.DEG2RAD);
@@ -14618,7 +14626,7 @@ console.log(22222)
                     const windowSizeInts = node.data.indexes.length;
                     const windowSizeBytes = windowSizeInts * Constants.BytesPerInt;
                     let destView = new Uint32Array(this.sortWorkerIndexesToSort.buffer,
-                                                   currentByteOffset - windowSizeBytes, windowSizeInts);
+                        currentByteOffset - windowSizeBytes, windowSizeInts);
                     destView.set(node.data.indexes);
                     currentByteOffset -= windowSizeBytes;
                 }

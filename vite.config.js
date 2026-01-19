@@ -108,10 +108,10 @@ export default defineConfig({
         }
       },
     },
-     watch: {
+    watch: {
       ignored: [
-        '**/media_data/**', 
-        '**/node_modules/**', 
+        '**/media_data/**',
+        '**/node_modules/**',
         '**/.git/**',
         '**/dist/**',
       ]

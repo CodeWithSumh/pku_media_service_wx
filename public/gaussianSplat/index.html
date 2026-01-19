@@ -47,30 +47,45 @@
 
       try {
         console.log('Loading model-url.json...');
-        const response = await fetch('model-url.json');
-        console.log('Response status:', response.status);
+        const configResponse = await fetch('model-url.json');
+        console.log('Config response status:', configResponse.status);
+
+        if (!configResponse.ok) {
+          throw new Error(`HTTP error! status: ${configResponse.status}`);
+        }
+
+        const urlData = await configResponse.json();
+        console.log('URL data loaded:', urlData);
+
+        console.log('Fetching splat URL from API...');
+
+        const pathId = parseInt(data.pageParams.id);
+        console.log('Path ID:', pathId);
+
+        const keyMap = {
+          1: 'huabiao.splat',
+          2: 'boyata.splat',
+          3: 'lidazhao.splat'
+        };
+
+        const key = keyMap[pathId] || 'huabiao.splat';
+        const apiUrl = `${urlData}/api/getTempUrl?key=${key}`;
+
+        console.log('Fetching URL for key:', key);
+        const response = await fetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const urlData = await response.json();
-        console.log('URL data loaded:', urlData);
+        const result = await response.json();
+        console.log('API response:', result);
 
-        const pathId = parseInt(data.pageParams.id);
-        console.log('Path ID:', pathId);
-
-        let path = '';
-        switch (pathId) {
-          case 1:
-            path = urlData.modelsBase + urlData.models.huabiao; break;
-          case 2:
-            path = urlData.modelsBase + urlData.models.boyata; break;
-          case 3:
-            path = urlData.modelsBase + urlData.models.lidazhao; break;
-          default:
-            path = urlData.modelsBase + urlData.models.huabiao; break;
+        const path = result.url || result.data?.url;
+        if (!path) {
+          throw new Error('No URL returned from API');
         }
+
         console.log('Full path to model:', path);
 
         console.log('Initializing viewer...');
