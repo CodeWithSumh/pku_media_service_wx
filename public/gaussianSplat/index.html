@@ -2,65 +2,67 @@
 <html lang="en">
 
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <title>3D Gaussian Splat Demo - Garden</title>
-  <script type="text/javascript" src="js/util.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <title>3D Gaussian Splat Demo</title>
+
   <script type="importmap">
     {
-        "imports": {
-            "three": "./lib/three.module.js",
-            "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
-        }
+      "imports": {
+        "three": "./lib/three.module.js",
+        "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
+      }
     }
   </script>
+
   <style>
+    html,
     body {
-      background-color: #000000;
-      height: 100vh;
-      margin: 0px;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
     }
   </style>
-
 </head>
 
 <body>
   <script type="module">
     import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
-    import * as THREE from 'three';
 
-    console.log('3D Gaussian Splat page loaded');
+    console.log('[GaussianSplat] page loaded');
 
-    window.addEventListener("message", async (event) => {
-      console.log('Received message event:', event);
-      console.log('Message data:', event.data);
-      console.log('pageParams:', event.data?.pageParams);
+    /**
+     * 接收外部 postMessage，决定加载哪个 splat
+     */
+    window.addEventListener('message', async (event) => {
+      console.log('[GaussianSplat] message received:', event.data);
 
-      const { data } = event;
-
-      // 检查消息数据是否有效
+      const data = event.data;
       if (!data || !data.pageParams || !data.pageParams.id) {
-        console.error('Invalid message data: missing pageParams.id');
+        console.error('[GaussianSplat] invalid message data');
         return;
       }
 
       try {
-        console.log('Loading model-url.json...');
-        const configResponse = await fetch('model-url.json');
-        console.log('Config response status:', configResponse.status);
-
-        if (!configResponse.ok) {
-          throw new Error(`HTTP error! status: ${configResponse.status}`);
+        /**
+         * 1. 读取配置（你原有逻辑，保留）
+         *    modelsBase 一般是当前云托管服务域名
+         */
+        const configResp = await fetch('model-url.json');
+        if (!configResp.ok) {
+          throw new Error('failed to load model-url.json');
         }
 
-        const urlData = await configResponse.json();
-        console.log('URL data loaded:', urlData);
+        const config = await configResp.json();
+        const modelsBase = config.modelsBase;
 
-        console.log('Fetching splat URL from API...');
-
-        const pathId = parseInt(data.pageParams.id);
-        console.log('Path ID:', pathId);
+        /**
+         * 2. 根据 id 选择 splat 文件
+         */
+        const id = Number(data.pageParams.id);
 
         const keyMap = {
           1: 'huabiao.splat',
@@ -68,52 +70,45 @@
           3: 'lidazhao.splat'
         };
 
-        const key = keyMap[pathId] || 'huabiao.splat';
-        const apiUrl = `${urlData.modelsBase}/api/getTempUrl?key=${key}`;
+        const key = keyMap[id] || 'huabiao.splat';
 
-        console.log('Fetching URL for key:', key);
-        const response = await fetch(apiUrl);
+        /**
+         * 3. 最关键的一步：
+         *    直接使用云托管代理接口作为模型 URL
+         *    ⚠️ 不 fetch、不解析、不处理
+         */
+        const splatUrl = `${modelsBase}/api/splat?key=${encodeURIComponent(key)}`;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        console.log('[GaussianSplat] loading via proxy:', splatUrl);
 
-        const result = await response.json();
-        console.log('API response:', result);
-
-        const path = result.url || result.data?.url;
-        if (!path) {
-          throw new Error('No URL returned from API');
-        }
-
-        console.log('Full path to model:', path);
-
-        console.log('Initializing viewer...');
+        /**
+         * 4. 初始化 Viewer
+         */
         const viewer = new GaussianSplats3D.Viewer({
-          'cameraUp': [0, -1, 0],
-          'initialCameraPosition': [0.2545772143590187, -0.022421991409040026, -5.515991088728122],
-          'initialCameraLookAt': [0, 0, 0],
-          'sphericalHarmonicsDegree': 2,
+          cameraUp: [0, -1, 0],
+          initialCameraPosition: [
+            0.2545772143590187,
+            -0.022421991409040026,
+            -5.515991088728122
+          ],
+          initialCameraLookAt: [0, 0, 0],
+          sphericalHarmonicsDegree: 2
         });
 
-        console.log('Loading splat scene...');
-        viewer.addSplatScene(path, {
-          'progressiveLoad': true
-        }).then(() => {
-          console.log('Splat scene loaded, starting viewer...');
-          viewer.start();
-          console.log('Viewer started successfully');
-        }).catch(error => {
-          console.error('Error loading splat scene:', error);
+        /**
+         * 5. 加载 splat（140MB，必须 progressiveLoad）
+         */
+        await viewer.addSplatScene(splatUrl, {
+          progressiveLoad: true
         });
 
-      } catch (e) {
-        console.error('Error in message handler:', e);
-        console.error('Error details:', e.message);
-        console.error('Stack:', e.stack);
+        viewer.start();
+        console.log('[GaussianSplat] viewer started');
+
+      } catch (err) {
+        console.error('[GaussianSplat] load error:', err);
       }
-    })
-
+    });
   </script>
 </body>
 
