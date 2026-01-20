@@ -162,7 +162,7 @@ const fetchWithProgress = function (path, onProgress, saveChunks = true, headers
             mode: 'cors',  // 显式设置为 CORS 模式
             headers: {
                 ...headers,  // 保留传入的 headers
-                'Access-Control-Allow-Origin': '*' // 允许所有来源的跨域请求
+                // 'Access-Control-Allow-Origin': '*' // 允许所有来源的跨域请求
             }
         };
 
