@@ -77,7 +77,7 @@
          *    直接使用云托管代理接口作为模型 URL
          *    ⚠️ 不 fetch、不解析、不处理
          */
-        const splatUrl = `${modelsBase}/api/splat?key=${encodeURIComponent(key)}`;
+        const splatUrl = `${modelsBase}/${encodeURIComponent(key)}`;
 
         console.log('[GaussianSplat] loading via proxy:', splatUrl);
 

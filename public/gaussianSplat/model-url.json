@@ -1,6 +1,6 @@
 {
   "base": "__AUTO_BASE__",
-  "modelsBase": "https://cos-temp-url-217355-6-1395711158.sh.run.tcloudbase.com",
+  "modelsBase": "http://129.204.60.104/splat",
   "models": {
     "huabiao": "/huabiao.splat",
     "boyata": "/boya.splat",
