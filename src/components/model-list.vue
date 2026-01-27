@@ -30,7 +30,7 @@ export default {
         }
         const allSplat = Object.values(urlData.models);
         for (let i = 1; i < (allSplat.length + 1); i++) {
-          this.models.push(`${urlData.modelsBase}${allSplat[i - 1]}`);
+          this.models.push(`${urlData.base}${allSplat[i - 1]}`);
           this.pageUrl.push(`${urlData.base}model?id=${i}`);
         }
         console.log('Models fetched:', this.models);

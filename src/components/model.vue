@@ -5,7 +5,7 @@
       src="gaussianSplat/garden.html" @load="sendMessage"/>
        -->
     <iframe ref="3dIframe" style="width: 100%; border-radius: 16px; border: none; height: 100%"
-      src="gaussianSplat/index.html"/>
+      src="gaussianSplat/index.html" />
   </div>
 </template>
 

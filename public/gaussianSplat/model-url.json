@@ -1,9 +1,8 @@
 {
   "base": "__AUTO_BASE__",
-  "modelsBase": "http://129.204.60.104/splat",
   "models": {
-    "huabiao": "/huabiao.splat",
-    "boyata": "/boya.splat",
-    "lidazhao": "/lidazhao.splat"
+    "huabiao": "gaussianSplat/gs_data/huabiao.splat",
+    "boyata": "gaussianSplat/gs_data/boya.splat",
+    "lidazhao": "gaussianSplat/gs_data/lidazhao.splat"
   }
 }
