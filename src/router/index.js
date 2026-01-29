@@ -3,8 +3,12 @@ import Router from 'vue-router';
 
 Vue.use(Router);
 
+console.log(window.BASE_URL)
+
 export default new Router({
   mode: 'history',
+  // 核心新增：添加base属性，值和vite.config.js中的base完全一致
+  base: window.BASE_URL,
   routes: [
     {
       path: '/',

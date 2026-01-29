@@ -56,7 +56,7 @@ export default {
       }
     },
     sendMessage() {
-      console.log('Sending message with query:', this.$route.query);
+      this.$route.query.baseUrl = window.BASE_URL || '/'
       console.log('iframe element:', this.iframeEle);
       if (!this.iframeEle || !this.iframeEle.contentWindow) {
         console.error('iframe or contentWindow not available');

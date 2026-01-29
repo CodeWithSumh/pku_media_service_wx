@@ -42,20 +42,21 @@
         const urlData = await response.json();
 
         if (urlData.base === '__AUTO_BASE__') {
-          urlData.base = window.location.origin + '/';
+          urlData.base = window.location.origin;
           // console.log(46666, urlData.base);
 
           const pathId = parseInt(data.pageParams.id);
+          const baseUrl = data.pageParams.baseUrl
           let path = ''
           switch (pathId) {
             case 1:
-              path = urlData.base + urlData.models.huabiao; break;
+              path = urlData.base + baseUrl + urlData.models.huabiao; break;
             case 2:
-              path = urlData.base + urlData.models.boyata; break;
+              path = urlData.base + baseUrl + urlData.models.boyata; break;
             case 3:
-              path = urlData.base + urlData.models.lidazhao; break;
+              path = urlData.base + baseUrl + urlData.models.lidazhao; break;
             default:
-              path = urlData.base + urlData.models.huabiao; break;
+              path = urlData.base + baseUrl + urlData.models.huabiao; break;
           }
 
           const urlParams = new URLSearchParams(window.location.search);

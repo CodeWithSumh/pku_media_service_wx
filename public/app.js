@@ -16,22 +16,15 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // vue dist
-app.use(express.static(path.join(__dirname, '../dist')));
-app.get(/.*/, function(req, res) {
+app.use('/pkumedia', express.static(path.join(__dirname, '../dist')));
+app.get(/.*/, function (req, res) {
   res.sendFile(path.resolve(__dirname, '../dist', 'index.html'));
 });
 
 // error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   res.status(err.status || 500);
   res.send(err.message);
 });
 
-/**
- * ★ 关键：监听云托管端口
- */
-const port = process.env.PORT || 8080;
-
-app.listen(port, '0.0.0.0', () => {
-  console.log('Server listening on port', port);
-});
+module.exports = app;

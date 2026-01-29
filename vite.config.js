@@ -6,6 +6,10 @@ import fs from 'fs'
 import fsExtra from 'fs-extra'
 import zlib from 'zlib'
 
+
+// 引入dotenv，手动加载.env文件
+import dotenv from 'dotenv'
+
 const apiBaseUrl = 'https://172.22.23.117:8932'
 function resolve(dir) {
   return path.join(__dirname, dir)
@@ -53,89 +57,110 @@ function excludeMultiplePublicPathsPlugin() {
     }
   }
 }
+export default defineConfig(({ mode }, command) => {
+  // 1. 加载通用env + 对应mode的env（后加载的覆盖先加载的，符合Vite规则）
+  dotenv.config({ path: path.resolve(__dirname, '.env') }) // 通用配置
+  const envResult = dotenv.config({
+    path: path.resolve(__dirname, `.env.${mode}`) // 开发/生产专属配置
+  })
 
-export default defineConfig({
-  plugins: [
-    vue(),
-    compression({
-      ext: '.gz',
-      algorithm: 'gzip',
-      threshold: 1024,
-      deleteOriginFile: false,
-      filter: /\.(js|css|html|ply|splat)$/,
-    }),
-    excludeMultiplePublicPathsPlugin()
-  ],
+  // 2. 核心：直接从parsed对象取值，不碰process.env！加多层容错，防止解析失败
+  const envData = envResult.parsed || {}
+  // 从解析后的对象中获取VITE_BASE_URL，兜底为根路径/
+  const VITE_BASE_URL = envData.VITE_BASE_URL || '/'
 
-  build: {
-    // ...其他 build 设置
-  },
+  // 调试打印：验证是否取到值（必看！确认envData里有VITE_BASE_URL）
+  console.log('dotenv解析的所有变量：', envData, JSON.stringify(VITE_BASE_URL))
+  console.log('最终使用的VITE_BASE_URL：', VITE_BASE_URL)
 
-  resolve: {
-    alias: {
-      '@': resolve('src'),
-    },
-    extensions: ['.js', '.vue', '.json'],
-  },
 
-  server: {
-    host: '0.0.0.0',
-    port: 8088,
-    open: false,
-    allowedHosts: [
-      'xp-smallest-comfortable-cancellation.trycloudflare.com'
+  return {
+    // 核心修改：读取环境变量中的VITE_BASE_URL
+    base: VITE_BASE_URL,
+    plugins: [
+      vue(),
+      compression({
+        ext: '.gz',
+        algorithm: 'gzip',
+        threshold: 1024,
+        deleteOriginFile: false,
+        filter: /\.(js|css|html|ply|splat)$/,
+      }),
+      excludeMultiplePublicPathsPlugin()
     ],
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
-      "cross-origin-resource-policy": "cross-origin",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
-      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+    // 核心新增：注入全局变量window.BASE_URL
+    define: {
+      'window.BASE_URL': JSON.stringify(VITE_BASE_URL)
     },
-    proxy: {
-      '/ply': {
-        target: apiBaseUrl,
-        changeOrigin: true,
-        pathRewrite: {
-          '^/ply': '',
-        },
-        onProxyReq(proxyReq) {
-          proxyReq.setHeader('Access-Control-Allow-Origin', '*')
-        },
-        onProxyRes(proxyRes) {
-          proxyRes.headers['Access-Control-Allow-Origin'] = '*'
-        }
+
+    resolve: {
+      alias: {
+        '@': resolve('src'),
       },
-    },
-    watch: {
-      ignored: [
-        '**/media_data/**',
-        '**/node_modules/**',
-        '**/.git/**',
-        '**/dist/**',
-      ]
+      extensions: ['.js', '.vue', '.json'],
     },
 
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.url.endsWith('.ply')) {
-          const filePath = path.join(__dirname, 'public', req.url)
-          if (fs.existsSync(filePath)) {
-            res.setHeader('Content-Encoding', 'gzip')
-            res.setHeader('Content-Type', 'application/octet-stream')
-            fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(res)
-          } else {
-            res.statusCode = 404
-            res.end('File not found')
+    server: {
+      host: '0.0.0.0',
+      port: 8088,
+      open: false,
+      allowedHosts: [
+        'xp-smallest-comfortable-cancellation.trycloudflare.com'
+      ],
+      headers: {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "cross-origin-resource-policy": "cross-origin",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+      },
+      proxy: {
+        '/ply': {
+          target: apiBaseUrl,
+          changeOrigin: true,
+          pathRewrite: {
+            '^/ply': '',
+          },
+          onProxyReq(proxyReq) {
+            proxyReq.setHeader('Access-Control-Allow-Origin', '*')
+          },
+          onProxyRes(proxyRes) {
+            proxyRes.headers['Access-Control-Allow-Origin'] = '*'
           }
-        } else {
-          next()
-        }
-      })
-    },
+        },
+      },
+      watch: {
+        ignored: [
+          '**/media_data/**',
+          '**/node_modules/**',
+          '**/.git/**',
+          '**/dist/**',
+        ]
+      },
 
-    hot: true,
-    historyApiFallback: true,
-  },
-})
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url.endsWith('.ply')) {
+            const filePath = path.join(__dirname, 'public', req.url)
+            if (fs.existsSync(filePath)) {
+              res.setHeader('Content-Encoding', 'gzip')
+              res.setHeader('Content-Type', 'application/octet-stream')
+              fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(res)
+            } else {
+              res.statusCode = 404
+              res.end('File not found')
+            }
+          } else {
+            next()
+          }
+        })
+      },
+
+      hot: true,
+      historyApiFallback: true,
+    },
+  }
+}
+
+)

@@ -23,10 +23,19 @@ export default {
   methods: {
     async fetchModels() {
       try {
-        const response = await fetch('/gaussianSplat/model-url.json');
+        // 核心1：从环境变量获取base前缀，拼接json请求路径（确保能正确请求到文件）
+        const baseUrl = import.meta.env.VITE_BASE_URL;
+        // 拼接json文件的完整请求路径，适配base前缀
+        const jsonRequestUrl = `${baseUrl}gaussianSplat/model-url.json`;
+        const response = await fetch(jsonRequestUrl);
+
+        // 判空：确保请求成功（状态码200）
+        if (!response.ok) throw new Error(`请求失败：${response.status}`);
+
         const urlData = await response.json();
         if (urlData.base === '__AUTO_BASE__') {
-          urlData.base = window.location.origin + '/';
+          // 核心2：拼接base前缀，生成正确的基础路径（域名 + /pkumedia/）
+          urlData.base = window.location.origin + baseUrl;
         }
         const allSplat = Object.values(urlData.models);
         for (let i = 1; i < (allSplat.length + 1); i++) {

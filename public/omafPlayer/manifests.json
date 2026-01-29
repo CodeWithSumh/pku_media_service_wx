@@ -1,6 +1,6 @@
 {
   "mpds": [{
     "name": "video01",
-    "url": "t300f/media300frame/dash/test300frame_live2.mpd"
+    "url": "oallfs/dash/oallfs_live2.mpd"
   }]
 }
